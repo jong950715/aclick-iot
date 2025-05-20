@@ -27,12 +27,15 @@ class Encryptor {
         nonce: nonce,
       );
       
-      // Combine nonce and cipherText to create the encrypted data
-      final combined = Uint8List(nonce.length + secretBox.cipherText.length);
-      combined.setRange(0, nonce.length, nonce);
-      combined.setRange(nonce.length, combined.length, secretBox.cipherText);
+      // JSON으로 직렬화하여 nonce, cipherText, mac 저장
+      final encryptionData = {
+        'nonce': base64Encode(nonce),
+        'cipherText': base64Encode(secretBox.cipherText),
+        'mac': base64Encode(secretBox.mac.bytes),
+      };
       
-      return Right(base64Encode(combined));
+      // JSON 인코딩 후 base64로 반환
+      return Right(base64Encode(utf8.encode(jsonEncode(encryptionData))));
     } catch (e) {
       return Left('Encryption failed: $e');
     }
@@ -44,19 +47,21 @@ class Encryptor {
     required String secretKey,
   }) async {
     try {
-      // Decode the base64 encrypted data
-      final decoded = base64Decode(encryptedData);
+      // JSON 형식 복원
+      final jsonData = utf8.decode(base64Decode(encryptedData));
+      final Map<String, dynamic> encryptionData = jsonDecode(jsonData);
       
-      // Split nonce and cipherText
-      final nonce = decoded.sublist(0, _algorithm.nonceLength);
-      final cipherText = decoded.sublist(_algorithm.nonceLength);
+      // 각 컴포넌트 추출
+      final nonce = base64Decode(encryptionData['nonce']);
+      final cipherText = base64Decode(encryptionData['cipherText']);
+      final macBytes = base64Decode(encryptionData['mac']);
       
       // Convert the secret key
       final key = SecretKey(base64Decode(secretKey));
       
       // Decrypt the data
       final plainText = await _algorithm.decrypt(
-        SecretBox(cipherText, nonce: nonce, mac: Mac.empty),
+        SecretBox(cipherText, nonce: nonce, mac: Mac(macBytes)),
         secretKey: key,
       );
       
@@ -67,9 +72,19 @@ class Encryptor {
   }
 
   /// Generates a new random secret key
+  Future<Either<String, String>> generateRandomKey(int keyLengthBytes) async {
+    try {
+      final key = await _algorithm.newSecretKey();
+      final keyBytes = await key.extractBytes();
+      return Right(base64Encode(keyBytes));
+    } catch (e) {
+      return Left('Failed to generate key: $e');
+    }
+  }
+  
+  /// 키를 생성하고 바로 반환 (편의 메서드)
   Future<String> generateSecretKey() async {
-    final key = await _algorithm.newSecretKey();
-    final keyBytes = await key.extractBytes();
-    return base64Encode(keyBytes);
+    final result = await generateRandomKey(32);
+    return result.getRight().getOrElse(() => '');
   }
 }

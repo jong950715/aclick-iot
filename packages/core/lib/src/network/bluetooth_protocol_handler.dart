@@ -41,7 +41,8 @@ class BluetoothProtocolHandler {
         _sessionKey = initialSessionKey,
         _sendCallback = sendCallback {
     listenToData(dataStream);
-    generateSessionKey();
+    setSessionKey("enQn8SBqQ1fYyd8WIZR0x5uSYa0GHehUiFrq+3R8M1o="); // TODO 나중에 QR코드로 교환하는 흐름으로 변경해야함.
+    // generateSessionKey();
   }
 
   factory BluetoothProtocolHandler.fromConnectionStream(
