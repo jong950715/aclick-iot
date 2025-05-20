@@ -1,6 +1,6 @@
 # Task ID: 2
 # Title: Bluetooth Classic Connection Implementation
-# Status: pending
+# Status: done
 # Dependencies: 1
 # Priority: high
 # Description: Implement Bluetooth Classic SPP (Serial Port Profile) connection between smartphone and IoT device for initial pairing and command exchange.
@@ -56,9 +56,39 @@ Design a binary or text-based protocol with command types, payload formats, and 
 ### Details:
 Create a state machine to track connection status (disconnected, connecting, connected, etc.). Implement handlers for unexpected disconnections, connection timeouts, and reconnection attempts. Add user notifications for connection state changes.
 
-## 5. Perform Testing and Stability Improvements [pending]
+## 5. Perform Testing and Stability Improvements [done]
 ### Dependencies: 2.3, 2.4
 ### Description: Test the Bluetooth implementation across various devices and conditions, then implement stability improvements
 ### Details:
 Create test cases for normal operation and edge cases. Test with different Android versions and IoT hardware configurations. Measure connection reliability and latency. Implement improvements for identified issues, such as connection retry logic, better error handling, and power optimization.
+
+## 6. Implement Bluetooth Adapter and Device Discovery in Smartphone App [pending]
+### Dependencies: None
+### Description: Create the Bluetooth adapter interface and device discovery functionality in the smartphone application
+### Details:
+Implement Bluetooth permission handling, adapter initialization, device scanning, and discovery UI. Create a device selection interface that displays available Bluetooth devices with signal strength indicators. Handle platform-specific implementations for iOS and Android. Implement scan timeout and retry mechanisms.
+
+## 7. Develop IoT Device Bluetooth Connection Handler [pending]
+### Dependencies: None
+### Description: Implement the Bluetooth server socket and connection handling on the IoT device
+### Details:
+Create a Bluetooth server socket on the IoT device that listens for incoming connections. Implement pairing and authentication mechanisms. Develop connection acceptance logic with appropriate security measures. Handle multiple connection attempts and implement connection queuing if needed. Create low-level read/write operations for data exchange.
+
+## 8. Design and Implement Shared Bluetooth Protocol [pending]
+### Dependencies: 2.6, 2.7
+### Description: Create a common communication protocol and command format for both smartphone and IoT device
+### Details:
+Define packet structure with headers, command codes, payload format, and checksums. Implement serialization/deserialization of commands and responses. Create protocol documentation for future reference. Design error handling and recovery mechanisms. Implement protocol versioning to support future updates.
+
+## 9. Implement Connection State Management [pending]
+### Dependencies: 2.6, 2.7, 2.8
+### Description: Develop robust connection state tracking and management for both smartphone and IoT applications
+### Details:
+Create a state machine to track connection status (disconnected, connecting, connected, etc.). Implement automatic reconnection logic with exponential backoff. Develop connection monitoring with heartbeat mechanism. Create user notifications for connection state changes. Implement graceful disconnection handling and resource cleanup.
+
+## 10. Perform Bluetooth Connection Testing and Stability Improvements [pending]
+### Dependencies: 2.8, 2.9
+### Description: Test the Bluetooth implementation across various devices and conditions, and implement stability improvements
+### Details:
+Create automated and manual test cases for connection scenarios. Test on multiple smartphone models and OS versions. Implement stress testing with repeated connections/disconnections. Measure and optimize power consumption during Bluetooth operations. Add logging and diagnostics for connection issues. Implement performance metrics collection for connection reliability analysis.
 

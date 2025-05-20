@@ -32,3 +32,29 @@
 4. Test automatic reconnection after signal loss
 5. Measure data transfer speeds (target: ~22 MB/s)
 6. Verify proper cleanup of hotspot resources after use
+
+# Subtasks:
+## 1. Smartphone App Hotspot Creation and Management [pending]
+### Dependencies: None
+### Description: Implement the functionality to create and manage a local-only hotspot in the smartphone application
+### Details:
+Develop the smartphone app component that creates and manages a local-only hotspot using Android's LocalOnlyHotspotReservation API. Handle runtime permissions for location and nearby devices. Implement proper lifecycle management to start/stop the hotspot based on app state. Create a configuration interface for users to view hotspot status and customize settings where applicable. Ensure proper error handling for devices that don't support local-only hotspots.
+
+## 2. IoT App Wi-Fi Client Connection [pending]
+### Dependencies: 3.1
+### Description: Develop the IoT device application component that connects to the smartphone's local-only hotspot
+### Details:
+Create the Wi-Fi client functionality for the IoT application that scans for and connects to the smartphone's local-only hotspot. Implement Wi-Fi network scanning, filtering, and connection logic. Handle authentication with the provided credentials. Develop retry mechanisms for failed connection attempts. Implement proper network state monitoring to detect disconnections. Create a connection status UI component to show the current state to users.
+
+## 3. Bluetooth Integration for Credential Exchange [pending]
+### Dependencies: 3.1, 3.2
+### Description: Implement secure credential exchange between smartphone and IoT device using Bluetooth
+### Details:
+Develop Bluetooth functionality to securely transmit Wi-Fi credentials from the smartphone to the IoT device. Implement BLE advertisement and discovery on both devices. Create a secure pairing process with user confirmation. Design and implement an encrypted protocol for transmitting SSID and password information. Handle Bluetooth permission requests and state management. Ensure the credential exchange is resilient against connection interruptions.
+
+## 4. Connection Monitoring and Fallback Mechanisms [pending]
+### Dependencies: 3.1, 3.2, 3.3
+### Description: Implement robust connection monitoring and fallback strategies for maintaining device connectivity
+### Details:
+Develop a connection monitoring system that continuously checks the health of the Wi-Fi connection. Implement automatic reconnection logic when disconnections are detected. Create fallback mechanisms to revert to Bluetooth communication when Wi-Fi is unavailable. Design and implement a connection quality assessment algorithm. Add user notifications for connection status changes. Create logging and diagnostics to help troubleshoot connection issues. Test the system under various network conditions and failure scenarios.
+
