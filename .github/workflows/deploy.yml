@@ -1,0 +1,125 @@
+name: Deploy
+
+on:
+  push:
+    branches: [ main, develop ]
+
+jobs:
+  deploy_dev:
+    name: Deploy to Development
+    if: github.ref == 'refs/heads/develop'
+    needs: [test_deploy]
+    runs-on: ubuntu-latest
+    
+    steps:
+      - uses: actions/checkout@v3
+      
+      - name: Setup Flutter
+        uses: subosito/flutter-action@v2
+        with:
+          flutter-version: '3.29.3'
+          channel: 'stable'
+          cache: true
+      
+      - name: Install dependencies
+        run: |
+          cd packages/core
+          flutter pub get
+          cd ../../apps/iot
+          flutter pub get
+          cd ../../apps/phone
+          flutter pub get
+      
+      - name: Build IoT App for Dev
+        run: |
+          cd apps/iot
+          cp .env.dev .env
+          flutter build apk --debug
+      
+      - name: Build Phone App for Dev
+        run: |
+          cd apps/phone
+          cp .env.dev .env
+          flutter build apk --debug
+      
+      - name: Deploy to Development Environment
+        run: |
+          echo "Deploying to Development Environment"
+          # Add deployment script or commands here
+          # This could be Firebase App Distribution, internal server, etc.
+  
+  deploy_staging:
+    name: Deploy to Staging
+    if: github.ref == 'refs/heads/main'
+    needs: [test_deploy]
+    runs-on: ubuntu-latest
+    
+    steps:
+      - uses: actions/checkout@v3
+      
+      - name: Setup Flutter
+        uses: subosito/flutter-action@v2
+        with:
+          flutter-version: '3.29.3'
+          channel: 'stable'
+          cache: true
+      
+      - name: Install dependencies
+        run: |
+          cd packages/core
+          flutter pub get
+          cd ../../apps/iot
+          flutter pub get
+          cd ../../apps/phone
+          flutter pub get
+      
+      - name: Build IoT App for Staging
+        run: |
+          cd apps/iot
+          cp .env.staging .env
+          flutter build apk --profile
+      
+      - name: Build Phone App for Staging
+        run: |
+          cd apps/phone
+          cp .env.staging .env
+          flutter build apk --profile
+      
+      - name: Deploy to Staging Environment
+        run: |
+          echo "Deploying to Staging Environment"
+          # Add deployment script or commands here
+          # This could be Firebase App Distribution, TestFlight, etc.
+
+  # Run tests before deployment
+  test_deploy:
+    name: Pre-deployment Tests
+    runs-on: ubuntu-latest
+    
+    steps:
+      - uses: actions/checkout@v3
+      
+      - name: Setup Flutter
+        uses: subosito/flutter-action@v2
+        with:
+          flutter-version: '3.29.3'
+          channel: 'stable'
+          cache: true
+      
+      - name: Install dependencies
+        run: |
+          cd packages/core
+          flutter pub get
+          cd ../../apps/iot
+          flutter pub get
+          cd ../../apps/phone
+          flutter pub get
+      
+      - name: Run all tests
+        run: |
+          cd packages/core
+          flutter test
+          cd ../../apps/iot
+          flutter test
+          cd ../../apps/phone
+          flutter test

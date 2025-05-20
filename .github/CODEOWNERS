@@ -1,0 +1,16 @@
+# These owners will be the default owners for everything in the repo.
+# Unless a later match takes precedence, they will be requested for
+# review when someone opens a pull request.
+* @project-admin
+
+# Core package owners
+/packages/core/ @core-team
+
+# IoT app owners
+/apps/iot/ @iot-team
+
+# Phone app owners
+/apps/phone/ @phone-team
+
+# CI/CD configuration owners
+/.github/ @devops-team

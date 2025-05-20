@@ -1,0 +1,101 @@
+# Task ID: 1
+# Title: Project Setup and Environment Configuration
+# Status: pending
+# Dependencies: None
+# Priority: high
+# Description: Set up the mono-repo structure with Flutter projects for both smartphone and IoT apps, including shared core packages and CI/CD pipeline.
+# Details:
+1. Create Git mono-repo with structure:
+   - /apps/phone (Flutter Android app)
+   - /apps/iot (Flutter Android app for IoT mocking)
+   - /packages/core (shared modules)
+2. Configure Flutter 3.29.3 environment for both apps
+3. Set up GitHub Actions CI/CD pipeline with:
+   - Lint and static analysis
+   - Unit and integration tests
+   - Build automation
+4. Create shared Riverpod state management structure
+5. Configure code conventions and PR workflow documentation
+6. Initialize shared packages for:
+   - Event models (Protobuf definitions)
+   - Encryption utilities
+   - Network protocols
+7. Set up dependency injection and module structure
+
+# Test Strategy:
+1. Verify correct repository structure and branch protection rules
+2. Validate CI/CD pipeline with test commits
+3. Ensure Flutter environment consistency across both apps
+4. Test shared package imports and accessibility
+5. Verify Riverpod provider setup and state management
+
+# Subtasks:
+## 1. Create Mono-repo Structure [done]
+### Dependencies: None
+### Description: Set up the base repository structure with appropriate folders for Flutter apps and shared packages
+### Details:
+Create the base mono-repo structure with the following organization:
+- /apps/phone (Flutter Android app)
+- /apps/iot (Flutter Android app for IoT mocking)
+- /packages/core (shared modules)
+Initialize git repository, set up .gitignore files, and document the repository structure in README.md.
+
+## 2. Configure Flutter Environment [done]
+### Dependencies: None
+### Description: Set up and standardize Flutter 3.29.3 development environment for both applications
+### Details:
+Create pubspec.yaml files for both Flutter applications with consistent dependencies. Configure Flutter 3.29.3 environment settings and developer tools. Set up shared linting rules and code formatting standards. Create project-specific environment configurations (dev, staging, production) for both apps.
+
+## 3. Implement CI/CD Pipeline [done]
+### Dependencies: 1.1
+### Description: Set up GitHub Actions workflow for continuous integration and deployment
+### Details:
+Create GitHub Actions workflow files for:
+- Lint and static code analysis
+- Unit and integration tests
+- Automated builds for different environments
+Configure branch protection rules that require passing tests before merging. Set up automated deployment processes for development and staging environments.
+
+## 4. Set Up Shared Package Framework [done]
+### Dependencies: 1.1
+### Description: Create the structure for shared packages that will be used by both applications
+### Details:
+Create the basic structure for shared packages in the /packages/core directory, including:
+- Event models with Protobuf definitions
+- Encryption utilities
+- Network protocol handlers
+Configure package dependencies and exports. Set up versioning strategy for shared packages.
+
+## 5. Implement State Management [pending]
+### Dependencies: 1.2, 1.4
+### Description: Set up Riverpod state management structure for both applications
+### Details:
+Configure Riverpod for state management across both applications:
+- Set up provider structure and organization
+- Implement state containers and controllers
+- Create sample implementations demonstrating usage patterns
+- Document state management architecture and best practices
+
+## 6. Implement Dependency Injection [pending]
+### Dependencies: 1.5
+### Description: Set up dependency injection framework for managing service instances
+### Details:
+Implement a dependency injection system that works with Riverpod:
+- Create service locator pattern for common services
+- Set up injection for network clients, repositories, and utilities
+- Configure scoped providers for feature-specific dependencies
+- Ensure testability through proper dependency management
+
+## 7. Create Developer Documentation [pending]
+### Dependencies: 1.3, 1.6
+### Description: Create comprehensive documentation for project setup, architecture, and developer workflows
+### Details:
+Develop comprehensive project documentation including:
+- Environment setup instructions
+- Repository structure and conventions
+- Development workflow and PR process
+- Architecture decisions and diagrams
+- State management patterns and examples
+- Build and deployment procedures
+Set up documentation maintenance process and standards.
+

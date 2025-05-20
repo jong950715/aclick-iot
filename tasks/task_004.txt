@@ -1,0 +1,37 @@
+# Task ID: 4
+# Title: Security Protocol and Certificate Infrastructure
+# Status: pending
+# Dependencies: 3
+# Priority: high
+# Description: Implement RSA key exchange, TLS certificate infrastructure, and secure communication protocols between smartphone and IoT device.
+# Details:
+1. Certificate Infrastructure:
+   - Create tools/gen_keys.sh script using OpenSSL for:
+     * Root CA generation (RSA-4096 + SHA-256, 10-year validity)
+     * Device certificate generation (RSA-2048, 1-year validity)
+   - Implement certificate storage:
+     * Android KeyStore API for secure key storage
+     * Encrypted SharedPreferences for Flutter access
+
+2. Key Exchange Protocol:
+   - Implement RSA-2048 key pair generation
+   - Create secure key exchange during initial pairing
+   - Use OAEP padding with SHA-256 for encryption
+   - Store exchanged keys securely in KeyStore
+
+3. Secure Communication:
+   - Implement JWT generation and validation:
+     * HMAC SHA-256 signing
+     * Payload with event_id, iat (issued at), exp (expiration)
+   - Create SSID/password encryption using RSA
+   - Implement TLSv1.3 with ECDHE-RSA-AES256-GCM-SHA384 cipher suite
+   - Add certificate pinning for HTTPS connections
+
+# Test Strategy:
+1. Verify certificate generation and validation
+2. Test key exchange protocol security
+3. Validate JWT generation and verification
+4. Test encrypted SSID/password transmission
+5. Verify TLS connection establishment
+6. Perform security audit of key storage
+7. Test certificate pinning effectiveness

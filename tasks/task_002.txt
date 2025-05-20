@@ -1,0 +1,64 @@
+# Task ID: 2
+# Title: Bluetooth Classic Connection Implementation
+# Status: pending
+# Dependencies: 1
+# Priority: high
+# Description: Implement Bluetooth Classic SPP (Serial Port Profile) connection between smartphone and IoT device for initial pairing and command exchange.
+# Details:
+1. Smartphone App (Receiver):
+   - Implement BluetoothAdapter for device discovery
+   - Create BluetoothServerSocket using listenUsingRfcommWithServiceRecord
+   - Use UUID: 00001101-0000-1000-8000-00805F9B34FB for SPP
+   - Implement connection state management (DISCONNECTED → CONNECTING → CONNECTED → AUTHENTICATED)
+   - Create Platform Channel for native Bluetooth API access
+
+2. IoT App (Transmitter):
+   - Implement BluetoothAdapter for scanning
+   - Create BluetoothSocket using createRfcommSocketToServiceRecord
+   - Implement connection retry with exponential backoff (max 5 retries)
+   - Add RSSI monitoring for connection quality (-80dBm threshold)
+
+3. Shared Protocol:
+   - Implement JSON command format: {"cmd": "string", "data": object}
+   - Support commands: "pair", "hotspot_request", "event_notify"
+   - Add timeout handling: connection (15s), data transfer (30s)
+
+# Test Strategy:
+1. Unit tests for Bluetooth protocol message serialization/deserialization
+2. Integration tests for device discovery and pairing
+3. Test connection stability with various Android devices
+4. Verify reconnection logic with forced disconnections
+5. Measure connection establishment time (target: 5-7 seconds)
+6. Test RSSI monitoring and quality indicators
+
+# Subtasks:
+## 1. Implement Bluetooth Adapter and Device Discovery [done]
+### Dependencies: None
+### Description: Create the Bluetooth adapter initialization and device discovery functionality in the smartphone app
+### Details:
+Implement Kotlin code to access Android's BluetoothAdapter API, request necessary permissions, enable Bluetooth if disabled, scan for nearby Bluetooth devices, and display them in a user interface. Handle edge cases like Bluetooth being unavailable or user denying permissions.
+
+## 2. Establish Bluetooth Connection in IoT Application [done]
+### Dependencies: None
+### Description: Develop the IoT application's ability to accept incoming Bluetooth connections
+### Details:
+Configure the IoT device to be discoverable, implement a Bluetooth server socket to listen for connection requests, handle pairing processes, and establish reliable socket connections. Include timeout handling and connection retry logic.
+
+## 3. Define Shared Communication Protocol [done]
+### Dependencies: 2.1, 2.2
+### Description: Create a standardized protocol and command format for communication between smartphone and IoT device
+### Details:
+Design a binary or text-based protocol with command types, payload formats, and error handling. Implement serialization/deserialization logic on both sides. Include checksums or other validation mechanisms to ensure data integrity.
+
+## 4. Implement Connection State Management [done]
+### Dependencies: 2.2, 2.3
+### Description: Develop robust connection state handling for both smartphone and IoT applications
+### Details:
+Create a state machine to track connection status (disconnected, connecting, connected, etc.). Implement handlers for unexpected disconnections, connection timeouts, and reconnection attempts. Add user notifications for connection state changes.
+
+## 5. Perform Testing and Stability Improvements [pending]
+### Dependencies: 2.3, 2.4
+### Description: Test the Bluetooth implementation across various devices and conditions, then implement stability improvements
+### Details:
+Create test cases for normal operation and edge cases. Test with different Android versions and IoT hardware configurations. Measure connection reliability and latency. Implement improvements for identified issues, such as connection retry logic, better error handling, and power optimization.
+

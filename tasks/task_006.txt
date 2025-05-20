@@ -1,0 +1,34 @@
+# Task ID: 6
+# Title: Video Clip Extraction and Processing
+# Status: pending
+# Dependencies: 5
+# Priority: medium
+# Description: Implement functionality to extract 30-second video clips from the RingBuffer when triggered by button press, maintaining original quality.
+# Details:
+1. Clip Extraction:
+   - Implement MediaMuxer for MP4 container creation
+   - Create clip extraction logic to capture 15 seconds before and 15 seconds after button press
+   - Ensure keyframe boundary alignment for clean extraction
+   - Maintain original video quality without re-encoding
+
+2. Metadata Embedding:
+   - Add XMP metadata to MP4 files:
+     * event_id: UUID String (RFC 4122 v4)
+     * created_at: DateTime in ISO 8601 format
+     * location data (when available)
+     * resolution, fps, and duration
+   - Calculate SHA-256 hash for file integrity verification
+
+3. Temporary Storage:
+   - Save extracted clips to getExternalFilesDir(null)
+   - Implement cleanup mechanism for temporary files
+   - Add error handling for storage space limitations
+
+# Test Strategy:
+1. Verify clip extraction timing accuracy
+2. Test extraction with various video resolutions
+3. Validate metadata embedding and retrieval
+4. Measure extraction performance (target: <3 seconds)
+5. Verify video quality preservation
+6. Test handling of edge cases (buffer underrun, storage full)
+7. Validate SHA-256 hash generation and verification

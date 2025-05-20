@@ -1,0 +1,9 @@
+Break down the Bluetooth Classic connection implementation into five key subtasks:
+
+1)  Implementing Bluetooth adapter access and device discovery in the smartphone app,
+2) Establishing a Bluetooth connection in the IoT application,
+3) Defining a shared communication protocol and command format,
+4) Managing connection states and transitions, and
+5) Performing testing and applying stability improvements.
+
+Kotlin code may be required to access Android's native Bluetooth APIs.

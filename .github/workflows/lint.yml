@@ -1,0 +1,52 @@
+name: Lint
+
+on:
+  push:
+    branches: [ main, develop ]
+  pull_request:
+    branches: [ main, develop ]
+
+jobs:
+  lint:
+    name: Lint Check
+    runs-on: ubuntu-latest
+    
+    steps:
+      - uses: actions/checkout@v3
+      
+      - name: Setup Flutter
+        uses: subosito/flutter-action@v2
+        with:
+          flutter-version: '3.29.3'
+          channel: 'stable'
+          cache: true
+      
+      - name: Install dependencies (IoT app)
+        run: |
+          cd apps/iot
+          flutter pub get
+      
+      - name: Install dependencies (Phone app)
+        run: |
+          cd apps/phone
+          flutter pub get
+      
+      - name: Install dependencies (Core package)
+        run: |
+          cd packages/core
+          flutter pub get
+      
+      - name: Analyze IoT app
+        run: |
+          cd apps/iot
+          flutter analyze --no-fatal-infos
+      
+      - name: Analyze Phone app
+        run: |
+          cd apps/phone
+          flutter analyze --no-fatal-infos
+      
+      - name: Analyze Core package
+        run: |
+          cd packages/core
+          flutter analyze --no-fatal-infos

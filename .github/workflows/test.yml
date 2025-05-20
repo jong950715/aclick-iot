@@ -1,0 +1,60 @@
+name: Test
+
+on:
+  push:
+    branches: [ main, develop ]
+  pull_request:
+    branches: [ main, develop ]
+
+jobs:
+  test:
+    name: Flutter Tests
+    runs-on: ubuntu-latest
+    
+    steps:
+      - uses: actions/checkout@v3
+      
+      - name: Setup Flutter
+        uses: subosito/flutter-action@v2
+        with:
+          flutter-version: '3.29.3'
+          channel: 'stable'
+          cache: true
+      
+      - name: Install dependencies (Core package)
+        run: |
+          cd packages/core
+          flutter pub get
+      
+      - name: Run Core package tests
+        run: |
+          cd packages/core
+          flutter test --coverage
+      
+      - name: Install dependencies (IoT app)
+        run: |
+          cd apps/iot
+          flutter pub get
+      
+      - name: Run IoT app tests
+        run: |
+          cd apps/iot
+          flutter test --coverage
+      
+      - name: Install dependencies (Phone app)
+        run: |
+          cd apps/phone
+          flutter pub get
+      
+      - name: Run Phone app tests
+        run: |
+          cd apps/phone
+          flutter test --coverage
+      
+      - name: Upload coverage to Codecov
+        uses: codecov/codecov-action@v3
+        with:
+          token: ${{ secrets.CODECOV_TOKEN || '' }}
+          files: ./packages/core/coverage/lcov.info,./apps/iot/coverage/lcov.info,./apps/phone/coverage/lcov.info
+          flags: unittests
+          fail_ci_if_error: false

@@ -1,0 +1,38 @@
+# Task ID: 8
+# Title: Event Management System
+# Status: pending
+# Dependencies: 6, 7
+# Priority: medium
+# Description: Implement event object model, state management, and persistence for tracking video clip status throughout the capture and transfer process.
+# Details:
+1. Event Model Implementation:
+   - Create Protobuf definition for Event object with fields:
+     * event_id: UUID String (RFC 4122 v4)
+     * created_at: int64 (Unix timestamp, milliseconds)
+     * status: enum (NEW=0, UPLOADING=1, DONE=2, RETRY=3, FAILED=4)
+     * location: message with latitude, longitude, accuracy, timestamp
+     * retry_count: int32
+     * clip_path: String (local storage path)
+     * error_message: String (optional)
+   - Generate Dart code from Protobuf definition
+
+2. State Management:
+   - Implement Riverpod state providers for event tracking
+   - Create event state transitions and validation
+   - Add retry logic with exponential backoff
+   - Implement event notifications for UI updates
+
+3. Persistence:
+   - IoT App: Use Room database for event queue management
+   - Smartphone App: Implement Hive DB storage with TypeAdapters
+   - Add FIFO-based storage management (max 32GB)
+   - Create directory structure: /clips/{YYYY-MM}/{DD}/{event_id}.mp4
+
+# Test Strategy:
+1. Test event object serialization/deserialization
+2. Verify state transitions and validation
+3. Test persistence across app restarts
+4. Validate retry logic and error handling
+5. Measure database performance with large event counts
+6. Test FIFO storage management
+7. Verify directory structure creation and management

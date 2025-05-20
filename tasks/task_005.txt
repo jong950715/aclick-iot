@@ -1,0 +1,35 @@
+# Task ID: 5
+# Title: Camera RingBuffer Implementation
+# Status: pending
+# Dependencies: 1
+# Priority: medium
+# Description: Implement video RingBuffer system in the IoT app using CameraX API to continuously record and store the last 30 seconds of footage.
+# Details:
+1. Camera Setup:
+   - Implement CameraX integration using SessionConfiguration.Builder
+   - Configure VideoCapture and Preview components
+   - Set up camera resolution selection based on device memory:
+     * Use ActivityManager.getMemoryClass() to detect available memory
+     * Default to 1080p, fallback to 720p on memory constraints
+
+2. RingBuffer Implementation:
+   - Create circular buffer for video frames using CameraX API
+   - Configure H.264 encoding (Baseline Profile, Level 4.1)
+   - Set variable bitrate: 4-8 Mbps for 1080p, 2-4 Mbps for 720p
+   - Configure AAC-LC audio: 48kHz, stereo, 128kbps
+   - Implement memory management with WeakReference caching
+
+3. Memory Optimization:
+   - Add real-time memory monitoring (Debug.getNativeHeapAllocatedSize())
+   - Implement ByteBuffer object pooling for frame handling
+   - Create OutOfMemoryError handler with recovery mechanism
+   - Add automatic resolution adjustment based on memory pressure
+
+# Test Strategy:
+1. Test camera initialization on various devices
+2. Verify RingBuffer functionality with different resolutions
+3. Measure memory usage during continuous recording
+4. Test recovery from memory pressure situations
+5. Verify video quality and encoding parameters
+6. Measure CPU usage during recording (target: <40%)
+7. Test long-duration stability (24+ hours)

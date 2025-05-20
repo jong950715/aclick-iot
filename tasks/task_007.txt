@@ -1,0 +1,35 @@
+# Task ID: 7
+# Title: HTTPS Server Implementation
+# Status: pending
+# Dependencies: 3, 4
+# Priority: medium
+# Description: Implement embedded HTTPS server in the smartphone app to receive video clips from the IoT device over the Local Only Hotspot connection.
+# Details:
+1. Jetty Server Setup:
+   - Implement embedded Jetty HTTPS server on port 8443
+   - Configure TLSv1.3 with custom certificate
+   - Set up server to start automatically when hotspot is active
+   - Implement proper resource cleanup on server shutdown
+
+2. API Endpoints:
+   - Create POST /clips endpoint for video upload:
+     * Accept multipart/form-data with event_id, file, metadata
+     * Validate JWT in Authorization header
+     * Return 201 Created with event_id on success
+   - Implement GET /status endpoint for server status check
+   - Add error handling and appropriate HTTP status codes
+
+3. File Reception:
+   - Implement chunked file reception (512KB chunks)
+   - Add progress tracking and transfer rate calculation
+   - Create adaptive rate control based on network conditions
+   - Implement partial upload resumption capability
+
+# Test Strategy:
+1. Test server startup and shutdown
+2. Verify TLS configuration and certificate validation
+3. Test file upload with various file sizes
+4. Measure transfer performance (target: >15MB/s)
+5. Verify JWT validation and authorization
+6. Test error handling and recovery
+7. Validate chunked upload and resumption capability

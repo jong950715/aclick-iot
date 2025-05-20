@@ -1,0 +1,44 @@
+name: core
+description: Shared core package for the IoT project
+version: 0.0.1
+publish_to: none
+
+environment:
+  sdk: '>=3.3.0 <4.0.0'
+  flutter: ">=3.29.3"
+
+dependencies:
+  flutter:
+    sdk: flutter
+  
+  # State management
+  flutter_riverpod: ^2.4.9
+  riverpod_annotation: ^2.3.3
+  
+  # Network services
+  http: ^1.1.0
+  
+  # For network encryption and security protocols
+  cryptography: ^2.5.0
+  
+  # Local storage
+  shared_preferences: ^2.2.2
+  
+  # Error handling
+  fpdart: ^1.1.0
+
+  bluetooth_classic:
+    path: ../bluetooth_classic
+
+dev_dependencies:
+  flutter_test:
+    sdk: flutter
+  
+  flutter_lints: ^5.0.0
+  
+  # Riverpod code generation
+  build_runner: ^2.4.7
+  riverpod_generator: ^2.3.9
+  
+  # Testing
+  mockito: ^5.4.3

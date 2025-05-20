@@ -1,0 +1,97 @@
+name: CI/CD Pipeline
+
+on:
+  push:
+    branches: [ main ]
+  pull_request:
+    branches: [ main ]
+
+jobs:
+  lint:
+    name: Static Analysis
+    runs-on: ubuntu-latest
+    defaults:
+      run:
+        working-directory: ./
+
+    steps:
+      - uses: actions/checkout@v3
+      - name: Set up Flutter
+        uses: subosito/flutter-action@v2
+        with:
+          flutter-version: '3.29.3'
+          channel: 'stable'
+      
+      - name: Check format in Phone app
+        run: cd apps/phone && flutter format --set-exit-if-changed .
+      
+      - name: Check format in IoT app
+        run: cd apps/iot && flutter format --set-exit-if-changed .
+      
+      - name: Analyze Phone app
+        run: cd apps/phone && flutter analyze
+      
+      - name: Analyze IoT app
+        run: cd apps/iot && flutter analyze
+
+  test:
+    name: Tests
+    runs-on: ubuntu-latest
+    needs: lint
+    defaults:
+      run:
+        working-directory: ./
+
+    steps:
+      - uses: actions/checkout@v3
+      - name: Set up Flutter
+        uses: subosito/flutter-action@v2
+        with:
+          flutter-version: '3.29.3'
+          channel: 'stable'
+      
+      - name: Get dependencies for Phone app
+        run: cd apps/phone && flutter pub get
+      
+      - name: Get dependencies for IoT app
+        run: cd apps/iot && flutter pub get
+      
+      - name: Run tests for Phone app
+        run: cd apps/phone && flutter test
+      
+      - name: Run tests for IoT app
+        run: cd apps/iot && flutter test
+
+  build-android:
+    name: Build Android
+    runs-on: ubuntu-latest
+    needs: test
+    defaults:
+      run:
+        working-directory: ./
+
+    steps:
+      - uses: actions/checkout@v3
+      - name: Set up Flutter
+        uses: subosito/flutter-action@v2
+        with:
+          flutter-version: '3.29.3'
+          channel: 'stable'
+      
+      - name: Build Phone APK
+        run: cd apps/phone && flutter build apk --release
+      
+      - name: Build IoT APK
+        run: cd apps/iot && flutter build apk --release
+      
+      - name: Upload Phone APK
+        uses: actions/upload-artifact@v3
+        with:
+          name: phone-app-release
+          path: apps/phone/build/app/outputs/flutter-apk/app-release.apk
+      
+      - name: Upload IoT APK
+        uses: actions/upload-artifact@v3
+        with:
+          name: iot-app-release
+          path: apps/iot/build/app/outputs/flutter-apk/app-release.apk
