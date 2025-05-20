@@ -344,21 +344,18 @@ class BluetoothClassicPlugin : FlutterPlugin, MethodCallHandler, ActivityAware {
                 return
             }
             
-            // Get permission type from arguments
-            val permissionType = call.argument<String>("permissionType") ?: "default"
+            // Get permission type from arguments (if not specified, use automatic permission detection)
+            val permissionType = call.argument<String>("permissionType")
             
-            when (permissionType) {
-                "android12" -> {
-                    // For Android 12+ (API 31+), request BLUETOOTH_CONNECT and BLUETOOTH_SCAN
-                    permissionManager.requestAndroid12Permissions(activity!!) { granted ->
-                        result.success(granted)
-                    }
+            if (permissionType == null || permissionType == "auto") {
+                // 기기 Android 버전에 맞는 적절한 권한 자동 요청
+                permissionManager.requestAppropriatePermissions(activity!!) { granted ->
+                    result.success(granted)
                 }
-                else -> {
-                    // For older Android versions, request legacy permissions
-                    permissionManager.requestBasicPermissions(activity!!) { granted ->
-                        result.success(granted)
-                    }
+            } else {
+                // 특정 권한 타입 요청(오래된 코드와의 호환성 유지)
+                permissionManager.requestPermissionsByType(activity!!, permissionType) { granted ->
+                    result.success(granted)
                 }
             }
         } catch (e: Exception) {

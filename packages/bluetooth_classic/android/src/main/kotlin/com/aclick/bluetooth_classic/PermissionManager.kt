@@ -93,11 +93,10 @@ class PermissionManager(private val context: Context) : PluginRegistry.RequestPe
     }
     
     /**
-     * Request Android 12+ specific Bluetooth permissions (BLUETOOTH_SCAN, BLUETOOTH_CONNECT)
+     * Request specific permissions specified by the permissions array
      */
-    fun requestAndroid12Permissions(activity: Activity, callback: (Boolean) -> Unit) {
+    fun requestSpecificPermissions(activity: Activity, permissions: Array<String>, callback: (Boolean) -> Unit) {
         // Check if permissions are already granted
-        val permissions = getAndroid12BluetoothPermissions()
         val allGranted = permissions.all { permission ->
             ContextCompat.checkSelfPermission(context, permission) == PackageManager.PERMISSION_GRANTED
         }
@@ -116,26 +115,42 @@ class PermissionManager(private val context: Context) : PluginRegistry.RequestPe
     }
     
     /**
+     * Request Android 12+ specific Bluetooth permissions (BLUETOOTH_SCAN, BLUETOOTH_CONNECT)
+     */
+    fun requestAndroid12Permissions(activity: Activity, callback: (Boolean) -> Unit) {
+        requestSpecificPermissions(activity, getAndroid12BluetoothPermissions(), callback)
+    }
+    
+    /**
      * Request basic Bluetooth permissions for Android 11 and below
      */
     fun requestBasicPermissions(activity: Activity, callback: (Boolean) -> Unit) {
-        // Check if permissions are already granted
-        val permissions = getBasicBluetoothPermissions()
-        val allGranted = permissions.all { permission ->
-            ContextCompat.checkSelfPermission(context, permission) == PackageManager.PERMISSION_GRANTED
+        requestSpecificPermissions(activity, getBasicBluetoothPermissions(), callback)
+    }
+    
+    /**
+     * Request permissions by type (android12, basic, or default)
+     */
+    fun requestPermissionsByType(activity: Activity, permissionType: String, callback: (Boolean) -> Unit) {
+        when (permissionType) {
+            "android12" -> requestAndroid12Permissions(activity, callback)
+            "basic" -> requestBasicPermissions(activity, callback)
+            else -> requestBasicPermissions(activity, callback)
         }
-        
-        if (allGranted) {
-            // Permissions already granted
-            callback(true)
-            return
+    }
+    
+    /**
+     * Request appropriate permissions based on the Android version of the device
+     * This method automatically detects the Android version and requests appropriate permissions
+     */
+    fun requestAppropriatePermissions(activity: Activity, callback: (Boolean) -> Unit) {
+        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.S) {
+            // Android 12+ (API 31+)
+            requestAndroid12Permissions(activity, callback)
+        } else {
+            // Android 11 and below
+            requestBasicPermissions(activity, callback)
         }
-        
-        // Set callback to handle permission result
-        permissionCallback = callback
-        
-        // Request permissions
-        ActivityCompat.requestPermissions(activity, permissions, REQUEST_BLUETOOTH_PERMISSIONS)
     }
     
     /**

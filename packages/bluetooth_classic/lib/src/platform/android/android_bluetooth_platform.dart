@@ -193,7 +193,7 @@ class AndroidBluetoothPlatform implements BluetoothPlatformInterface {
     final address = arguments['address'] as String?;
 
     if (address != null) {
-      _bluetoothConnectionEventController
+      _bluetoothConnectionEventController // TODO check
           .add(BluetoothConnectionEvent.disconnect(address));
       _connectedDevice = null;
     }
@@ -472,28 +472,13 @@ class AndroidBluetoothPlatform implements BluetoothPlatformInterface {
   @override
   Future<bool> requestPermissions() async {
     try {
-      // Android 12+ (API 31+) requires BLUETOOTH_CONNECT and BLUETOOTH_SCAN
+      // Android 플랫폼인 경우에만 권한 요청
       if (Platform.isAndroid) {
-        final Map<dynamic, dynamic>? androidInfo =
-            await _channel.invokeMethod('getAndroidInfo');
-        final int sdkInt = androidInfo?['sdkInt'] ?? 0;
-
-        if (sdkInt >= 31) {
-          // Android 12+ requires BLUETOOTH_CONNECT and BLUETOOTH_SCAN
-          final bool result = await _channel.invokeMethod(
-              'requestPermissions', {'permissionType': 'android12'});
-          return result;
-        } else if (sdkInt >= 23) {
-          // Android 6.0+ requires LOCATION permission for discovery
-          final bool result = await _channel.invokeMethod(
-              'requestPermissions', {'permissionType': 'android6'});
-          return result;
-        } else {
-          // Earlier Android versions don't need runtime permissions for Bluetooth
-          return true;
-        }
+        // 네이티브 코드에서 자동으로 기기 버전에 맞는 권한 요청
+        final bool result = await _channel.invokeMethod('requestPermissions');
+        return result;
       } else {
-        // Not Android platform
+        // 안드로이드가 아닌 플랫폼에서는 권한 필요 없음
         return true;
       }
     } on PlatformException catch (e) {

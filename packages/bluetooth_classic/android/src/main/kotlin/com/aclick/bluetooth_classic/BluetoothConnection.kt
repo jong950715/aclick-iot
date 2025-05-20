@@ -93,7 +93,10 @@ class BluetoothConnection @JvmOverloads constructor(
     }
     private var isListening = false
     private var readJob: Job? = null
-    private val scope = CoroutineScope(Dispatchers.IO + SupervisorJob())
+    
+    // 코루틴 관리를 위한 job 분리
+    private val job = SupervisorJob()
+    private val scope = CoroutineScope(Dispatchers.IO + job)
     
     // 통계 변수
     private var packetsReceived = 0
@@ -426,11 +429,17 @@ class BluetoothConnection @JvmOverloads constructor(
         isConnecting = false
         
         // Flutter에 연결 종료 알림
-        scope.launch(Dispatchers.Main) {
-            channel.invokeMethod("onDeviceDisconnected", mapOf(
-                "address" to device.address,
-                "name" to (device.name ?: "Unknown Device")
-            ))
+        try {
+            scope.launch(Dispatchers.Main) {
+                channel.invokeMethod("onDeviceDisconnected", mapOf(
+                    "address" to device.address,
+                    "name" to (device.name ?: "Unknown Device")
+                ))
+            }
+        } finally {
+            // 모든 코루틴 작업 취소 (만약의 상황을 대비해 try-finally에 배치)
+            job.cancelChildren()
+            job.cancel()
         }
         
         Log.d(TAG, "🔌 연결 종료: ${device.address}")
