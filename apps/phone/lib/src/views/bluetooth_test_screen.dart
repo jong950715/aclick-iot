@@ -8,6 +8,8 @@ import 'package:fpdart/fpdart.dart';
 import 'package:bluetooth_classic/bluetooth_classic.dart';
 import 'package:wifi_hotspot/wifi_hotspot.dart';
 import 'package:permission_handler/permission_handler.dart';
+import 'package:http/http.dart' as http;
+import 'package:phone/src/services/http_server_service.dart';
 
 // 블루투스 프로토콜 핸들러 제공자
 final bluetoothProtocolHandlerProvider =
@@ -39,6 +41,18 @@ final logProvider = StateProvider<List<String>>((ref) => []);
 
 // Wi-Fi 핫스팟 정보 제공자
 final hotspotInfoProvider = StateProvider<HotspotInfo?>((ref) => null);
+
+// HTTP 서버 서비스 제공자
+final httpServerServiceProvider = Provider<HttpServerService>((ref) => HttpServerService());
+
+// HTTP 서버 상태 제공자 (실행 중인지 여부)
+final httpServerStatusProvider = StateProvider<bool>((ref) => false);
+
+// HTTP 서버 포트 제공자
+final httpServerPortProvider = StateProvider<int?>((ref) => null);
+
+// HTTP 서버 핑 카운트 제공자
+final httpServerPingCountProvider = StateProvider<int>((ref) => 0);
 
 // HTTP 서버 포트 상수
 const int HTTP_SERVER_PORT = 8080;
@@ -271,25 +285,16 @@ class _BluetoothTestScreenState extends ConsumerState<BluetoothTestScreen> {
     }
 
     try {
-      final service = ref.read(bluetoothServiceProvider);
       final protocolHandler = ref.read(bluetoothProtocolHandlerProvider);
 
-      // HTTP 서버 주소 정보도 포함
-      final serverUrl = 'http://${hotspotInfo.ipAddress}:$HTTP_SERVER_PORT';
-
-      // 프로토콜에서 정의한 형식으로 WiFi 인증 정보 메시지 생성
-      final wifiCredentialsMessage = {
-        'type': 'wifi_credentials',
-        'data': {
-          'ssid': hotspotInfo.ssid,
-          'password': hotspotInfo.password,
-          'server_url': serverUrl
-        }
-      };
+      // 직렬화된 데이터를 로그에 출력
+      _addLog('보낼 데이터: ${hotspotInfo.toJson()}');
 
       // 메시지 전송
-      await protocolHandler.sendWifiCredentials(ssid: hotspotInfo.ssid, password: hotspotInfo.password);
-      _addLog('WiFi 인증 정보 전송됨: SSID=${hotspotInfo.ssid}, PWD=****, URL=$serverUrl');
+      await protocolHandler.sendWifiCredentials(
+        hotspotInfoJson: hotspotInfo.toJson(),
+      );
+      _addLog('WiFi 인증 정보 전송됨: SSID=${hotspotInfo.ssid}, PWD=${hotspotInfo.password}, URL=${hotspotInfo.serverPath}');
     } catch (e) {
       _addLog('WiFi 인증 정보 전송 오류: $e');
     }
@@ -302,77 +307,66 @@ class _BluetoothTestScreenState extends ConsumerState<BluetoothTestScreen> {
         _addLog('HTTP 서버 시작 실패: 핫스팟 정보가 없음');
         return;
       }
-
+      
+      // HTTP 서버 서비스 가져오기
+      final httpService = ref.read(httpServerServiceProvider);
+      
       _addLog('HTTP 서버 시작 중... 포트: $HTTP_SERVER_PORT');
-
-      // HTTP 서버 시작
-      final server = await HttpServer.bind(
-        InternetAddress.anyIPv4,
-        HTTP_SERVER_PORT,
+      
+      // 서버 시작
+      final success = await httpService.startServer(
+        port: HTTP_SERVER_PORT,
+        onLog: (message) {
+          _addLog('서버: $message');
+        },
       );
-      _httpServer = server;
-
-      _addLog('HTTP 서버가 ${hotspotInfo.ipAddress}:$HTTP_SERVER_PORT 에서 시작됨');
-
-      // 요청 처리
-      server.listen((HttpRequest request) async {
-        _addLog('HTTP 요청 수신: ${request.method} ${request.uri.path}');
-
-        if (request.method == 'POST' && request.uri.path == '/upload') {
-          // 파일 업로드 처리
-          try {
-            List<int> data = [];
-            await for (var chunk in request) {
-              data.addAll(chunk);
-            }
-
-            final fileName = request.uri.queryParameters['filename'] ?? 'unknown_file';
-            final directory = Directory('${Directory.systemTemp.path}/aclick_received');
-            if (!await directory.exists()) {
-              await directory.create(recursive: true);
-            }
-
-            final file = File('${directory.path}/$fileName');
-            await file.writeAsBytes(data);
-
-            _addLog('파일 저장됨: ${file.path} (${data.length} bytes)');
-
-            // 응답 반환
-            request.response.statusCode = 200;
-            request.response.headers.contentType = ContentType.json;
-            request.response.write(jsonEncode({'status': 'success', 'message': '파일 업로드 성공'}));
-          } catch (e) {
-            _addLog('파일 업로드 오류: $e');
-            request.response.statusCode = 500;
-            request.response.headers.contentType = ContentType.json;
-            request.response.write(jsonEncode({'status': 'error', 'message': e.toString()}));
-          } finally {
-            await request.response.close();
-          }
-        } else if (request.method == 'GET' && request.uri.path == '/status') {
-          // 상태 확인 요청 처리
-          request.response.statusCode = 200;
-          request.response.headers.contentType = ContentType.json;
-          request.response.write(jsonEncode({'status': 'active'}));
-          await request.response.close();
-        } else {
-          // 지원하지 않는 엔드포인트
-          request.response.statusCode = 404;
-          await request.response.close();
-        }
-      }, onError: (e) {
-        _addLog('HTTP 서버 오류: $e');
-      });
+      
+      if (success) {
+        // 상태 업데이트
+        ref.read(httpServerStatusProvider.notifier).state = true;
+        ref.read(httpServerPortProvider.notifier).state = httpService.currentPort;
+        
+        _addLog('HTTP 서버가 ${hotspotInfo.ipAddress}:${httpService.currentPort} 에서 시작됨');
+        _addLog('핑 테스트 URL: http://${hotspotInfo.ipAddress}:${httpService.currentPort}/ping');
+      } else {
+        _addLog('HTTP 서버 시작 실패');
+      }
     } catch (e) {
       _addLog('HTTP 서버 시작 오류: $e');
     }
   }
 
-  void _stopServer() async {
-    if (_httpServer != null) {
-      await _httpServer!.close(force: true);
-      _httpServer = null;
-      _addLog('HTTP 서버 중지됨');
+  Future<void> _stopServer() async {
+    try {
+      // 기존 서버 인스턴스 종료
+      if (_httpServer != null) {
+        await _httpServer?.close();
+        _httpServer = null;
+      }
+      
+      // 새 HTTP 서버 서비스 사용
+      final httpService = ref.read(httpServerServiceProvider);
+      
+      if (!httpService.isRunning) return;
+      
+      _addLog('HTTP 서버 중지 중...');
+      
+      final success = await httpService.stopServer(
+        onLog: (message) {
+          _addLog('서버: $message');
+        },
+      );
+      
+      if (success) {
+        ref.read(httpServerStatusProvider.notifier).state = false;
+        ref.read(httpServerPortProvider.notifier).state = null;
+        ref.read(httpServerPingCountProvider.notifier).state = 0;
+        _addLog('HTTP 서버가 중지되었습니다');
+      } else {
+        _addLog('HTTP 서버 중지 실패');
+      }
+    } catch (e) {
+      _addLog('HTTP 서버 중지 오류: $e');
     }
   }
 
@@ -388,14 +382,19 @@ class _BluetoothTestScreenState extends ConsumerState<BluetoothTestScreen> {
     final connectionState = ref.watch(connectionStateProvider);
     final selectedDevice = ref.watch(selectedDeviceProvider);
     final discoveredDevices = ref.watch(discoveredDevicesProvider);
+    final HotspotInfo? hotspotInfo = ref.watch(hotspotInfoProvider);
     final logs = ref.watch(logProvider);
 
     final isConnected = connectionState == BluetoothConnectionState.connected ||
         connectionState == BluetoothConnectionState.transferring;
 
+
+
+    final isHotspotOn = hotspotInfo != null;
+
     return Scaffold(
       appBar: AppBar(
-        title: const Text('A-Click IoT 테스트'),
+        title: const Text('A-Click IoT 모바일앱'),
       ),
       body: Column(
         children: [
@@ -420,46 +419,96 @@ class _BluetoothTestScreenState extends ConsumerState<BluetoothTestScreen> {
           ),
 
           // 메인 기능 버튼
-          Padding(
-            padding: const EdgeInsets.symmetric(horizontal: 8.0),
+          Container(
+            margin: const EdgeInsets.only(top: 10.0, bottom: 5.0),
+            padding: const EdgeInsets.symmetric(horizontal: 12.0),
             child: Row(
               children: [
                 Expanded(
                   child: ElevatedButton(
-                    onPressed: () => _startListening(),
-                    child: Text('블루투스 리스닝 시작'),
+                    style: ElevatedButton.styleFrom(
+                      padding: const EdgeInsets.symmetric(vertical: 12.0),
+                      shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(8.0)),
+                    ),
+                    onPressed: () => _startListening(), 
+                    child: Column(
+                      mainAxisSize: MainAxisSize.min,
+                      children: [
+                        const Icon(Icons.bluetooth, size: 24),
+                        const SizedBox(height: 4),
+                        const Text('1. 블루투스 리스닝'),
+                      ],
+                    ),
                   ),
                 ),
-                const SizedBox(width: 8),
-                Consumer(
-                  builder: (context, ref, _) {
-                    final hotspotInfo = ref.watch(hotspotInfoProvider);
-                    return ElevatedButton(
-                      onPressed: hotspotInfo == null ? _startHotspot : _stopHotspot,
-                      child: Text(hotspotInfo == null ? '수동으로 핫스팟 시작' : '핫스팟 중지'),
-                    );
-                  },
+                const SizedBox(width: 12),
+                Expanded(
+                  child: Consumer(
+                    builder: (context, ref, _) {
+                      final hotspotInfo = ref.watch(hotspotInfoProvider);
+                      return ElevatedButton(
+                        style: ElevatedButton.styleFrom(
+                          padding: const EdgeInsets.symmetric(vertical: 12.0),
+                          shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(8.0)),
+                          backgroundColor: hotspotInfo != null ? Colors.amber : null,
+                        ),
+                        onPressed: hotspotInfo == null ? _startHotspot : _stopHotspot,
+                        child: Column(
+                          mainAxisSize: MainAxisSize.min,
+                          children: [
+                            Icon(hotspotInfo == null ? Icons.wifi_tethering : Icons.wifi_tethering_off, size: 24),
+                            const SizedBox(height: 4),
+                            Text(hotspotInfo == null ? '2. 핫스팟 시작' : '핫스팟 중지'),
+                          ],
+                        ),
+                      );
+                    },
                   ),
-
+                ),
               ],
             ),
-            ),
+          ),
 
-          Padding(
-            padding: const EdgeInsets.symmetric(horizontal: 8.0),
+          Container(
+            margin: const EdgeInsets.only(bottom: 10.0),
+            padding: const EdgeInsets.symmetric(horizontal: 12.0),
             child: Row(
               children: [
                 Expanded(
                   child: ElevatedButton(
+                    style: ElevatedButton.styleFrom(
+                      padding: const EdgeInsets.symmetric(vertical: 12.0),
+                      shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(8.0)),
+                      backgroundColor: isConnected ? null : Colors.grey,
+                    ),
                     onPressed: isConnected ? _sendWifiCredentials : null,
-                    child: const Text('3. SSID/PW 송신'),
+                    child: Column(
+                      mainAxisSize: MainAxisSize.min,
+                      children: [
+                        const Icon(Icons.wifi, size: 24),
+                        const SizedBox(height: 4),
+                        const Text('3. SSID/PW 송신'),
+                      ],
+                    ),
                   ),
                 ),
-                const SizedBox(width: 8),
+                const SizedBox(width: 12),
                 Expanded(
                   child: ElevatedButton(
+                    style: ElevatedButton.styleFrom(
+                      padding: const EdgeInsets.symmetric(vertical: 12.0),
+                      shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(8.0)),
+                      backgroundColor: isConnected ? null : Colors.grey,
+                    ),
                     onPressed: isConnected ? _startServer : null,
-                    child: const Text('4. Server 열기'),
+                    child: Column(
+                      mainAxisSize: MainAxisSize.min,
+                      children: [
+                        const Icon(Icons.dns, size: 24),
+                        const SizedBox(height: 4),
+                        const Text('4. Server 열기'),
+                      ],
+                    ),
                   ),
                 ),
               ],

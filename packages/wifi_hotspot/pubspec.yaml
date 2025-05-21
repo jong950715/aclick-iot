@@ -1,5 +1,5 @@
 name: wifi_hotspot
-description: "A new Flutter plugin project."
+description: "A Flutter plugin for creating Wi-Fi hotspots. Requires Android 12+ (API 31+)."
 version: 0.0.1
 homepage:
 
@@ -37,6 +37,8 @@ flutter:
       android:
         package: com.example.wifi_hotspot
         pluginClass: WifiHotspotPlugin
+        # This plugin requires Android 12 (API 31) or higher
+        minSdkVersion: 31
 
   # To add assets to your plugin package, add an assets section, like this:
   # assets:

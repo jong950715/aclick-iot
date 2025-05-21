@@ -5,38 +5,44 @@ class HotspotInfo {
   final String ssid;
   final String password;
   final String ipAddress;
+  final int port;
+  final String serverPath;
 
   HotspotInfo({
     required this.ssid,
     required this.password,
     required this.ipAddress,
+    required this.port,
+    required this.serverPath,
   });
 
-  factory HotspotInfo.fromString(String infoString) {
-    final lines = infoString.split('\n');
-    String ssid = 'Unknown SSID';
-    String password = 'Unknown Key';
-    String ipAddress = 'Unknown IP';
-
-    for (final line in lines) {
-      if (line.startsWith('SSID=')) {
-        ssid = line.substring(5);
-      } else if (line.startsWith('Key=')) {
-        password = line.substring(4);
-      } else if (line.startsWith('IP=')) {
-        ipAddress = line.substring(3);
-      }
-    }
-
+  /// JSON에서 HotspotInfo 객체로 변환
+  factory HotspotInfo.fromJson(Map<String, dynamic> json) {
+    final port = json['port'] != null ? int.tryParse(json['port'].toString()) ?? 8080 : 8080;
+    final ipAddress = json['ipAddress'];
     return HotspotInfo(
-      ssid: ssid,
-      password: password,
+      ssid: json['ssid'],
+      password: json['password'],
       ipAddress: ipAddress,
+      port: port,
+      serverPath: 'http://$ipAddress:$port',
     );
   }
 
+  /// HotspotInfo 객체를 JSON으로 변환
+  Map<String, dynamic> toJson() {
+    return {
+      'ssid': ssid,
+      'password': password,
+      'ipAddress': ipAddress,
+      if (port != null) 'port': port,
+    };
+  }
+
   @override
-  String toString() => 'HotspotInfo(SSID: $ssid, Password: $password, IP: $ipAddress)';
+  String toString() =>
+      'HotspotInfo(SSID: $ssid, Password: $password, IP: $ipAddress${port !=
+          null ? ', Port: $port' : ''})';
 }
 
 class WifiHotspot {
@@ -45,13 +51,19 @@ class WifiHotspot {
   /// Starts a local-only Wi-Fi hotspot.
   /// 
   /// Returns a [HotspotInfo] containing the SSID, password, and IP address of the hotspot.
+
+  /// Connects to a WiFi network using the provided SSID and password.
+  /// 
+  /// Returns `true` if the connection request is successful, `false` otherwise.
+  /// Note that this doesn't guarantee an actual connection, just that the connection request was initiated successfully.
   /// Throws a [PlatformException] if the hotspot cannot be started.
   /// 
   /// This is only supported on Android API level 26 (Android 8.0) or higher.
   Future<HotspotInfo> startHotspot() async {
     try {
-      final String result = await _channel.invokeMethod('startHotspot');
-      return HotspotInfo.fromString(result);
+      final raw = await _channel.invokeMethod('startHotspot');
+      final result = Map<String, dynamic>.from(raw as Map);
+      return HotspotInfo.fromJson(result);
     } catch (e) {
       rethrow;
     }
@@ -66,6 +78,29 @@ class WifiHotspot {
       return result;
     } catch (e) {
       rethrow;
+    }
+  }
+
+  /// Connects to a WiFi network using the provided SSID and password.
+  /// 
+  /// Returns `true` if the connection was initiated successfully, `false` otherwise.
+  /// This does not guarantee that the device has connected to the network, only that
+  /// the connection request was successfully submitted.
+  Future<bool> connectToWifi({
+    required String ssid,
+    required String password,
+  }) async {
+    try {
+      final Map<String, dynamic> params = {
+        'ssid': ssid,
+        'password': password,
+      };
+
+      final bool result = await _channel.invokeMethod('connectToWifi', params);
+      return result;
+    } catch (e) {
+      print('Error connecting to WiFi: $e');
+      return false;
     }
   }
 

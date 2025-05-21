@@ -221,16 +221,11 @@ class BluetoothProtocol {
   
   /// Create a WiFi credentials message
   Future<Either<String, Uint8List>> createWifiCredentialsMessage({
-    required String ssid,
-    required String password,
+    required Map<String, dynamic> hotspotInfoJson,
     required String secretKey,
   }) async {
     try {
-      final data = {
-        'ssid': ssid,
-        'password': password,
-        'timestamp': DateTime.now().toIso8601String(),
-      };
+      final data = {...hotspotInfoJson, 'timestamp': DateTime.now().toIso8601String()};
       
       final jsonData = jsonEncode(data);
       

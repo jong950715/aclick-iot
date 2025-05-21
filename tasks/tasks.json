@@ -218,7 +218,7 @@
           "description": "Implement the functionality to create and manage a local-only hotspot in the smartphone application",
           "dependencies": [],
           "details": "Develop the smartphone app component that creates and manages a local-only hotspot using Android's LocalOnlyHotspotReservation API. Handle runtime permissions for location and nearby devices. Implement proper lifecycle management to start/stop the hotspot based on app state. Create a configuration interface for users to view hotspot status and customize settings where applicable. Ensure proper error handling for devices that don't support local-only hotspots.",
-          "status": "pending"
+          "status": "done"
         },
         {
           "id": 2,
@@ -228,7 +228,7 @@
             1
           ],
           "details": "Create the Wi-Fi client functionality for the IoT application that scans for and connects to the smartphone's local-only hotspot. Implement Wi-Fi network scanning, filtering, and connection logic. Handle authentication with the provided credentials. Develop retry mechanisms for failed connection attempts. Implement proper network state monitoring to detect disconnections. Create a connection status UI component to show the current state to users.",
-          "status": "pending"
+          "status": "done"
         },
         {
           "id": 3,
@@ -239,7 +239,7 @@
             2
           ],
           "details": "Develop Bluetooth functionality to securely transmit Wi-Fi credentials from the smartphone to the IoT device. Implement BLE advertisement and discovery on both devices. Create a secure pairing process with user confirmation. Design and implement an encrypted protocol for transmitting SSID and password information. Handle Bluetooth permission requests and state management. Ensure the credential exchange is resilient against connection interruptions.",
-          "status": "pending"
+          "status": "done"
         },
         {
           "id": 4,

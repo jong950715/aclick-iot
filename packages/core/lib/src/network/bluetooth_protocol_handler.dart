@@ -201,16 +201,14 @@ class BluetoothProtocolHandler {
 
   /// Send WiFi credentials
   Future<Either<String, bool>> sendWifiCredentials({
-    required String ssid,
-    required String password,
+    required Map<String, dynamic> hotspotInfoJson,
   }) async {
     if (_sessionKey == null) {
       return Left('No session key available for secure transmission');
     }
 
     final messageResult = await _protocol.createWifiCredentialsMessage(
-      ssid: ssid,
-      password: password,
+      hotspotInfoJson: hotspotInfoJson,
       secretKey: _sessionKey!,
     );
 

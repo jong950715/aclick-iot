@@ -16,11 +16,19 @@ class IoTApp extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     return MaterialApp(
-      title: 'IoT Device',
+      title: 'A-Click IoT Device',
       theme: ThemeData(
-        colorScheme: ColorScheme.fromSeed(seedColor: Colors.deepPurple),
-        useMaterial3: true,
+        primarySwatch: Colors.blue,
+        visualDensity: VisualDensity.adaptivePlatformDensity,
       ),
+      darkTheme: ThemeData.dark().copyWith(
+        primaryColor: Colors.blueAccent,
+        colorScheme: ColorScheme.dark(
+          primary: Colors.blueAccent,
+          secondary: Colors.lightBlueAccent,
+        ),
+      ),
+      themeMode: ThemeMode.system,
       home: const BluetoothConnectScreen(),
     );
   }
