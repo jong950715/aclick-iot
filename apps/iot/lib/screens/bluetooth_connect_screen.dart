@@ -9,6 +9,7 @@ import 'package:wifi_hotspot/wifi_hotspot.dart';
 import 'package:permission_handler/permission_handler.dart';
 import 'package:iot/services/http_server_service.dart';
 import 'package:http/http.dart' as http;
+import 'package:file_picker/file_picker.dart';
 
 import '../services/network_helper.dart';
 
@@ -919,6 +920,47 @@ class _BluetoothConnectScreenState
             ),
           ),
           _buildButtons(),
+
+          // 파일 업로드 버튼 (Wi-Fi 연결 후에만 노출)
+          Builder(
+            builder: (context) {
+              final hotspotInfo = ref.watch(hotspotInfoProvider);
+              final wifiStatus = ref.watch(wifiConnectionStatusProvider);
+              if (hotspotInfo == null || wifiStatus != '연결됨') {
+                return const SizedBox.shrink();
+              }
+              return Padding(
+                padding: const EdgeInsets.symmetric(vertical: 8.0),
+                child: ElevatedButton.icon(
+                  icon: const Icon(Icons.upload_file),
+                  label: const Text('파일 선택 및 업로드'),
+                  onPressed: () async {
+                    FilePickerResult? result = await FilePicker.platform.pickFiles();
+                    if (result == null || result.files.single.path == null) {
+                      _addMessage('파일 선택이 취소되었습니다.');
+                      return;
+                    }
+                    final filePath = result.files.single.path!;
+                    final uploadUrl = '${hotspotInfo.serverPath}/upload';
+                    _addMessage('파일 업로드 시작: $filePath → $uploadUrl');
+                    try {
+                      final response = await NetworkHelper.uploadFileOverWifi(
+                        url: uploadUrl,
+                        filePath: filePath,
+                      );
+                      if (response.statusCode == 201) {
+                        _addMessage('업로드 성공! 서버 응답: ${response.body}');
+                      } else {
+                        _addMessage('업로드 실패: 상태 코드 ${response.statusCode}, 응답: ${response.body}');
+                      }
+                    } catch (e) {
+                      _addMessage('파일 업로드 오류: $e');
+                    }
+                  },
+                ),
+              );
+            },
+          ),
 
           // 메시지 로그 영역 - 맨 아래에 배치
           Expanded(

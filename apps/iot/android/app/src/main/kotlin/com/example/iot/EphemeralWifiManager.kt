@@ -17,8 +17,12 @@ import okhttp3.OkHttpClient
 import okhttp3.Request
 import okhttp3.RequestBody
 import okhttp3.MediaType
+import okhttp3.MultipartBody
 import okhttp3.MediaType.Companion.toMediaType
 import okhttp3.RequestBody.Companion.toRequestBody
+import okhttp3.RequestBody.Companion.asRequestBody
+import java.io.File
+
 
 class EphemeralWifiManager(
     private val context: Context
@@ -100,6 +104,60 @@ class EphemeralWifiManager(
                 }
             } catch (e: Exception) {
                 Log.e(TAG, "HTTP request failed", e)
+                callback.onError(e.message ?: "unknown error")
+            }
+        }.start()
+    }
+
+    /**
+     * Multipart file upload over the ephemeral network.
+     */
+    fun uploadFileOverWifi(
+        url: String,
+        filePath: String,
+        formField: String = "file",
+        headers: Map<String, String>? = null,
+        callback: Callback
+    ) {
+        val network = currentNetwork
+        if (network == null) {
+            callback.onError("No network bound")
+            return
+        }
+
+        Thread {
+            try {
+                val file = File(filePath)
+                if (!file.exists()) throw IllegalArgumentException("File not found: $filePath")
+
+                // Multipart body
+                val mediaType = "application/octet-stream".toMediaType()
+                val multipartBody = MultipartBody.Builder()
+                    .setType(MultipartBody.FORM)
+                    // Add file part using asRequestBody
+                    .addFormDataPart(
+                        formField,
+                        file.name,
+                        file.asRequestBody(mediaType)
+                    )
+                    .build()
+
+                val requestBuilder = Request.Builder().url(url)
+                headers?.forEach { (k, v) -> requestBuilder.addHeader(k, v) }
+                requestBuilder.post(multipartBody)
+
+                val client = OkHttpClient.Builder()
+                    .socketFactory(network.socketFactory)
+                    .build()
+
+                client.newCall(requestBuilder.build()).execute().use { resp ->
+                    val respBody = resp.body?.string()
+                    val code = resp.code
+                    Log.i(TAG, "Upload @ $url → code=$code")
+                    callback.onResponse(resp.isSuccessful, code, respBody)
+                }
+            } catch (e: Exception) {
+                Log.e(TAG, "File upload failed", e)
                 callback.onError(e.message ?: "unknown error")
             }
         }.start()

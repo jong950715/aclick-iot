@@ -6,6 +6,8 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:core/core.dart';
 import 'package:fpdart/fpdart.dart';
 import 'package:bluetooth_classic/bluetooth_classic.dart';
+import 'package:media_scanner/media_scanner.dart';
+import 'package:phone/src/utils/file_path_utils.dart';
 import 'package:wifi_hotspot/wifi_hotspot.dart';
 import 'package:permission_handler/permission_handler.dart';
 import 'package:http/http.dart' as http;
@@ -43,7 +45,7 @@ final logProvider = StateProvider<List<String>>((ref) => []);
 final hotspotInfoProvider = StateProvider<HotspotInfo?>((ref) => null);
 
 // HTTP 서버 서비스 제공자
-final httpServerServiceProvider = Provider<HttpServerService>((ref) => HttpServerService());
+final httpServerServiceProvider = Provider<HttpServerService>((ref) => HttpServerService(port: HTTP_SERVER_PORT));
 
 // HTTP 서버 상태 제공자 (실행 중인지 여부)
 final httpServerStatusProvider = StateProvider<bool>((ref) => false);
@@ -311,23 +313,22 @@ class _BluetoothTestScreenState extends ConsumerState<BluetoothTestScreen> {
       // HTTP 서버 서비스 가져오기
       final httpService = ref.read(httpServerServiceProvider);
       
-      _addLog('HTTP 서버 시작 중... 포트: $HTTP_SERVER_PORT');
+      _addLog('HTTP 서버 시작 중... 포트: ${httpService.port}');
       
       // 서버 시작
       final success = await httpService.startServer(
-        port: HTTP_SERVER_PORT,
         onLog: (message) {
-          _addLog('서버: $message');
+          _addLog('HTPP 서버: $message');
         },
       );
       
       if (success) {
         // 상태 업데이트
         ref.read(httpServerStatusProvider.notifier).state = true;
-        ref.read(httpServerPortProvider.notifier).state = httpService.currentPort;
+        ref.read(httpServerPortProvider.notifier).state = httpService.port;
         
-        _addLog('HTTP 서버가 ${hotspotInfo.ipAddress}:${httpService.currentPort} 에서 시작됨');
-        _addLog('핑 테스트 URL: http://${hotspotInfo.ipAddress}:${httpService.currentPort}/ping');
+        _addLog('HTTP 서버가 ${hotspotInfo.ipAddress}:${httpService.port} 에서 시작됨');
+        _addLog('핑 테스트 URL: http://${hotspotInfo.ipAddress}:${httpService.port}/ping');
       } else {
         _addLog('HTTP 서버 시작 실패');
       }
@@ -351,11 +352,7 @@ class _BluetoothTestScreenState extends ConsumerState<BluetoothTestScreen> {
       
       _addLog('HTTP 서버 중지 중...');
       
-      final success = await httpService.stopServer(
-        onLog: (message) {
-          _addLog('서버: $message');
-        },
-      );
+      final success = await httpService.stopServer();
       
       if (success) {
         ref.read(httpServerStatusProvider.notifier).state = false;

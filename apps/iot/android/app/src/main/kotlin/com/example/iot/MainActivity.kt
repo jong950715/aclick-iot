@@ -24,27 +24,31 @@ class MainActivity: FlutterActivity() {
                                 result.success(true)
                             }
                             override fun onResponse(success: Boolean, code: Int, body: String?) {
-                                // HTTP 응답은 별도 채널/콜백으로 보내도 되고,
-                                // 여기선 Dart에서 바로 받도록 MethodChannel.invokeMethod 써도 됩니다.
-                                MethodChannel(flutterEngine.dartExecutor.binaryMessenger, CHANNEL)
-                                    .invokeMethod("onResponse", mapOf(
+                                MethodChannel(
+                                    flutterEngine.dartExecutor.binaryMessenger,
+                                    CHANNEL
+                                ).invokeMethod(
+                                    "onResponse",
+                                    mapOf(
                                         "success" to success,
                                         "code" to code,
                                         "body" to body
-                                    ))
+                                    )
+                                )
                             }
                             override fun onError(error: String) {
                                 result.error("NETWORK_ERROR", error, null)
                             }
                         })
                     }
+
                     "requestOverWifi" -> {
                         val method = call.argument<String>("method")!!
                         val url    = call.argument<String>("url")!!
                         val headers= call.argument<Map<String, String>>("headers")
                         val body   = call.argument<String>("body")
                         wifiMgr.requestOverWifi(method, url, headers, body, object: EphemeralWifiManager.Callback {
-                            override fun onConnected() { /* not used here */ }
+                            override fun onConnected() { /* not used */ }
                             override fun onResponse(success: Boolean, code: Int, body: String?) {
                                 result.success(mapOf(
                                     "success" to success,
@@ -57,6 +61,27 @@ class MainActivity: FlutterActivity() {
                             }
                         })
                     }
+
+                    "uploadFileOverWifi" -> {
+                        val url       = call.argument<String>("url")!!
+                        val filePath  = call.argument<String>("filePath")!!
+                        val formField = call.argument<String>("formField") ?: "file"
+                        val headers   = call.argument<Map<String, String>>("headers")
+                        wifiMgr.uploadFileOverWifi(url, filePath, formField, headers, object: EphemeralWifiManager.Callback {
+                            override fun onConnected() { /* not used */ }
+                            override fun onResponse(success: Boolean, code: Int, body: String?) {
+                                result.success(mapOf(
+                                    "success" to success,
+                                    "code"    to code,
+                                    "body"    to body
+                                ))
+                            }
+                            override fun onError(error: String) {
+                                result.error("UPLOAD_ERROR", error, null)
+                            }
+                        })
+                    }
+
                     else -> result.notImplemented()
                 }
             }

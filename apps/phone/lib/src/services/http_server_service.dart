@@ -1,142 +1,92 @@
+// bin/server.dart
+import 'dart:convert';
 import 'dart:io';
-import 'package:flutter/foundation.dart';
-import 'package:shelf/shelf.dart' as shelf;
-import 'package:shelf/shelf_io.dart' as shelf_io;
+import 'package:media_scanner/media_scanner.dart';
+import 'package:phone/src/utils/file_path_utils.dart';
+import 'package:shelf/shelf.dart';
+import 'package:shelf/shelf_io.dart';
+import 'package:shelf_router/shelf_router.dart';
+import 'package:shelf_multipart/shelf_multipart.dart';
 
-/// HTTP 서버 서비스 클래스
-/// Phone 앱에서 핫스팟 활성화 시 HTTP 서버를 시작하여 IoT 앱과 통신합니다.
 class HttpServerService {
-  HttpServer? _server;
-  bool _isRunning = false;
-  final int _defaultPort = 8080;
-  int _pingCount = 0;
-  
-  /// 현재 서버 상태
-  bool get isRunning => _isRunning;
-  
-  /// 서버가 수신한 핑 카운트
-  int get pingCount => _pingCount;
-  
-  /// 현재 포트
-  int? get currentPort => _isRunning ? _server?.port : null;
+  final InternetAddress address;
+  final int port;
+  late final Router _router;
+  int _pingCount = 0;  // ping 요청 수 카운트
+  bool isRunning = false;
 
-  /// HTTP 서버 시작
-  /// [port] 서버 포트 (기본값: 8080)
-  /// [onLog] 로그 콜백 함수
-  Future<bool> startServer({
-    int? port,
-    Function(String message)? onLog,
-  }) async {
-    if (_isRunning) {
-      onLog?.call('서버가 이미 실행 중입니다 (포트: ${_server?.port})');
-      return true;
-    }
+  void Function(dynamic message) _onLog = (_){};
 
-    try {
-      // 핸들러 설정
-      final handler = const shelf.Pipeline()
-          .addMiddleware(shelf.logRequests())
-          .addHandler(_handleRequest);
-      
-      // 서버 시작
-      _server = await shelf_io.serve(
-        handler, 
-        InternetAddress.anyIPv4, 
-        port ?? _defaultPort,
-      );
-      
-      _isRunning = true;
-      
-      onLog?.call('HTTP 서버가 시작되었습니다 - http://${_server?.address.host}:${_server?.port}');
-      return true;
-    } catch (e) {
-      onLog?.call('HTTP 서버 시작 오류: $e');
-      return false;
-    }
+  HttpServerService({
+    InternetAddress? address,
+    this.port = 8080,
+  }) : address = address ?? InternetAddress.anyIPv4 {
+    _router = _buildRouter();
   }
 
-  /// HTTP 서버 중지
-  Future<bool> stopServer({Function(String message)? onLog}) async {
-    if (!_isRunning || _server == null) {
-      onLog?.call('서버가 실행 중이 아닙니다');
-      return true;
-    }
+  /// 서버 실행 진입점
+  Future<bool> startServer({void Function(dynamic message)? onLog}) async {
+    _onLog = onLog ?? _onLog;
+    final handler = Pipeline().addMiddleware(logRequests()).addHandler(_router);
 
-    try {
-      await _server?.close(force: true);
-      _server = null;
-      _isRunning = false;
-      _pingCount = 0;
-      onLog?.call('HTTP 서버가 중지되었습니다');
-      return true;
-    } catch (e) {
-      onLog?.call('HTTP 서버 중지 오류: $e');
-      return false;
-    }
+    final server = await serve(handler, address, port);
+    _onLog('🚀 Server listening on ${server.address.host}:${server.port}');
+
+    isRunning = true;
+    return true;
   }
 
-  /// 요청 핸들러
-  Future<shelf.Response> _handleRequest(shelf.Request request) async {
-    // URL 경로 처리
-    final path = request.url.path;
-    
-    // 메서드 처리
-    final method = request.method;
-    
-    if (kDebugMode) {
-      print('요청 수신: $method $path');
-    }
-    
-    // 핑퐁 엔드포인트
-    if (path == 'ping') {
-      _pingCount++;
-      final timestamp = DateTime.now().toIso8601String();
-      return shelf.Response.ok(
-        '{"status": "success", "message": "pong", "count": $_pingCount, "timestamp": "$timestamp"}',
-        headers: {'Content-Type': 'application/json'},
-      );
-    }
-    
-    // 상태 확인 엔드포인트
-    if (path == 'status' || path.isEmpty) {
-      return shelf.Response.ok(
-        '{"status": "success", "server": "running", "ping_count": $_pingCount, "timestamp": "${DateTime.now().toIso8601String()}"}',
-        headers: {'Content-Type': 'application/json'},
-      );
-    }
-    
-    // 데이터 수신 엔드포인트 (POST 요청)
-    if (path == 'data' && method == 'POST') {
-      try {
-        final payload = await request.readAsString();
-        // 여기에서 데이터 처리 로직을 구현합니다
-        
-        return shelf.Response.ok(
-          '{"status": "success", "message": "Data received", "size": ${payload.length}}',
-          headers: {'Content-Type': 'application/json'},
-        );
-      } catch (e) {
-        return shelf.Response.internalServerError(
-          body: '{"status": "error", "message": "Failed to process data: $e"}',
-          headers: {'Content-Type': 'application/json'},
-        );
-      }
-    }
-    
-    // 리셋 핑 카운터 엔드포인트
-    if (path == 'reset-ping') {
-      final oldCount = _pingCount;
-      _pingCount = 0;
-      return shelf.Response.ok(
-        '{"status": "success", "message": "Ping counter reset", "previous_count": $oldCount}',
-        headers: {'Content-Type': 'application/json'},
-      );
-    }
-    
-    // 404 응답
-    return shelf.Response.notFound(
-      '{"status": "error", "message": "Not found"}',
+  /// 라우터·엔드포인트 구성
+  Router _buildRouter() {
+    final router = Router();
+    router.get('/ping', _pingHandler);
+    router.post('/upload', _uploadHandler);
+    return router;
+  }
+
+  /// stop
+  Future<bool> stopServer() async {
+    // TODO stop!
+    return true;
+  }
+
+  /// 헬스체크용
+  Response _pingHandler(Request req) {
+    _pingCount++;
+    final timestamp = DateTime.now().toIso8601String();
+    final body = jsonEncode({
+      'status': 'success',
+      'message': 'pong',
+      'count': _pingCount,
+      'timestamp': timestamp,
+    });
+
+    _onLog(body.toString());
+    return Response.ok(
+      body,
       headers: {'Content-Type': 'application/json'},
     );
+  }
+
+  Future<Response> _uploadHandler(Request request) async {
+    final multipart = request.multipart();
+    if (multipart == null) {
+      return Response(400, body: 'Expected multipart/form-data');
+    }
+
+    await for (final part in multipart.parts) {
+      final cd = part.headers['content-disposition'] ?? '';
+      final m = RegExp(r'filename="([^"]*)"').firstMatch(cd);
+      if (m == null) continue;
+
+
+      final filename = m.group(1)!;
+      final path = '${await FilePathUtils.getVideoDirectoryPath()}/$filename';
+      final file = File(path);
+      await part.pipe(file.openWrite());
+      await MediaScanner.loadMedia(path: path);
+    }
+
+    return Response(201, body: 'Upload OK');
   }
 }

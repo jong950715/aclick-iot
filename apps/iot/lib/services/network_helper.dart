@@ -1,3 +1,5 @@
+import 'dart:convert';
+
 import 'package:flutter/services.dart';
 import 'package:http/http.dart';
 
@@ -25,12 +27,29 @@ class NetworkHelper {
       'headers': headers,
       'body': body,
     });
-    return Response(res?['body'] as String, res?['code'] as int);
-    // return {
-    //   'success': res?['success'] as bool,
-    //   'code': res?['code'] as int,
-    //   'body': res?['body'] as String?,
-    // };
+    if (res == null) return Response('', 0);
+
+    return Response(res['body'], res['code'] as int);
+  }
+
+  /// 파일 업로드 (Multipart POST)
+  static Future<Response> uploadFileOverWifi({
+    required String url,
+    required String filePath,
+    String formField = 'file',
+    Map<String, String>? headers,
+  }) async {
+    final res = await _channel.invokeMethod<Map>(
+      'uploadFileOverWifi',
+      {
+        'url': url,
+        'filePath': filePath,
+        'formField': formField,
+        'headers': headers,
+      },
+    );
+    if (res == null) return Response('', 0);
+    return Response(res['body'] as String, res['code'] as int);
   }
 
   /// 원격에서 보내는 onResponse 이벤트(필요 시 사용)
