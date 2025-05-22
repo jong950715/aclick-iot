@@ -6,14 +6,23 @@ import io.flutter.embedding.engine.FlutterEngine
 import io.flutter.plugin.common.MethodChannel
 
 class MainActivity: FlutterActivity() {
-    private val CHANNEL = "com.example.iot/network"
+    private val NETWORK_CHANNEL = "com.example.iot/network"
+
     private lateinit var wifiMgr: EphemeralWifiManager
+    private lateinit var videoMethodChannel: VideoMethodChannel
 
     override fun configureFlutterEngine(flutterEngine: FlutterEngine) {
         super.configureFlutterEngine(flutterEngine)
+
+        // (2) VideoMethodChannel 플러그인 수동 추가
+        flutterEngine
+            .plugins
+            .add(VideoMethodChannel())
+        
+        // Wi-Fi 관리자 초기화
         wifiMgr = EphemeralWifiManager(applicationContext)
 
-        MethodChannel(flutterEngine.dartExecutor.binaryMessenger, CHANNEL)
+        MethodChannel(flutterEngine.dartExecutor.binaryMessenger, NETWORK_CHANNEL)
             .setMethodCallHandler { call, result ->
                 when (call.method) {
                     "connectToSsid" -> {
@@ -26,7 +35,7 @@ class MainActivity: FlutterActivity() {
                             override fun onResponse(success: Boolean, code: Int, body: String?) {
                                 MethodChannel(
                                     flutterEngine.dartExecutor.binaryMessenger,
-                                    CHANNEL
+                                    NETWORK_CHANNEL
                                 ).invokeMethod(
                                     "onResponse",
                                     mapOf(

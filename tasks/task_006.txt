@@ -3,15 +3,20 @@
 # Status: pending
 # Dependencies: 5
 # Priority: medium
-# Description: Implement functionality to extract 30-second video clips from the RingBuffer when triggered by button press, maintaining original quality.
+# Description: Implement functionality to extract video clips from continuous local storage when triggered by button press, maintaining original quality.
 # Details:
-1. Clip Extraction:
+1. Continuous Local Storage:
+   - Implement GOP (Group of Pictures) of 1-2 seconds for efficient segmentation
+   - Store video in segments of 10 seconds each in a rolling buffer on disk
+   - Manage disk space with a cleanup mechanism for older segments
+
+2. Clip Extraction:
+   - When an event occurs, combine 7 segments (~70 seconds of footage) into a single temp_uuid.mp4 file
    - Implement MediaMuxer for MP4 container creation
-   - Create clip extraction logic to capture 15 seconds before and 15 seconds after button press
    - Ensure keyframe boundary alignment for clean extraction
    - Maintain original video quality without re-encoding
 
-2. Metadata Embedding:
+3. Metadata Embedding:
    - Add XMP metadata to MP4 files:
      * event_id: UUID String (RFC 4122 v4)
      * created_at: DateTime in ISO 8601 format
@@ -19,16 +24,45 @@
      * resolution, fps, and duration
    - Calculate SHA-256 hash for file integrity verification
 
-3. Temporary Storage:
+4. Temporary Storage:
    - Save extracted clips to getExternalFilesDir(null)
    - Implement cleanup mechanism for temporary files
    - Add error handling for storage space limitations
 
 # Test Strategy:
-1. Verify clip extraction timing accuracy
-2. Test extraction with various video resolutions
-3. Validate metadata embedding and retrieval
-4. Measure extraction performance (target: <3 seconds)
-5. Verify video quality preservation
-6. Test handling of edge cases (buffer underrun, storage full)
-7. Validate SHA-256 hash generation and verification
+1. Verify segment creation and storage
+2. Test segment combination accuracy and timing
+3. Verify clip extraction with correct before/after event footage
+4. Test extraction with various video resolutions
+5. Validate metadata embedding and retrieval
+6. Measure extraction performance (target: <3 seconds)
+7. Verify video quality preservation
+8. Test handling of edge cases (missing segments, storage full)
+9. Validate SHA-256 hash generation and verification
+10. Test rolling buffer management and cleanup
+
+# Subtasks:
+## 1. Implement Continuous Local Storage Buffer [pending]
+### Dependencies: None
+### Description: Create a circular buffer system that continuously stores the most recent video footage locally
+### Details:
+Develop a memory-efficient circular buffer that maintains the last X minutes of video footage. Implement thread-safe read/write operations, configure buffer size based on available system resources, and ensure minimal frame loss during recording. Include performance monitoring to detect and handle potential bottlenecks.
+
+## 2. Develop Clip Extraction Mechanism [pending]
+### Dependencies: 6.1
+### Description: Create functionality to extract specific time-bounded clips from the continuous buffer
+### Details:
+Build an extraction system that can retrieve specific segments from the buffer based on start/end timestamps. Ensure frame accuracy at clip boundaries, implement proper synchronization to prevent buffer corruption during extraction, and optimize for minimal processing overhead. Include error handling for cases where requested timestamps are outside buffer range.
+
+## 3. Implement Metadata Embedding and Integrity Verification [pending]
+### Dependencies: 6.2
+### Description: Create systems to embed relevant metadata into extracted clips and verify their integrity
+### Details:
+Develop functionality to embed timestamps, geolocation, device ID, and other relevant metadata into clip headers. Implement cryptographic signing to ensure clip authenticity and integrity. Create verification mechanisms to detect tampering or corruption. Design the system to maintain compatibility with standard video formats while including the additional metadata.
+
+## 4. Develop Temporary Storage Management [pending]
+### Dependencies: 6.3
+### Description: Create a system to manage temporary storage of extracted clips before they are uploaded or processed further
+### Details:
+Implement a storage management system that handles clip retention policies, prioritizes clips based on importance, and manages disk space efficiently. Include automatic cleanup of processed clips, compression options for long-term storage, and recovery mechanisms in case of system failure. Develop monitoring tools to track storage usage and alert when thresholds are reached.
+

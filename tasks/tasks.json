@@ -284,15 +284,54 @@
     {
       "id": 6,
       "title": "Video Clip Extraction and Processing",
-      "description": "Implement functionality to extract 30-second video clips from the RingBuffer when triggered by button press, maintaining original quality.",
-      "details": "1. Clip Extraction:\n   - Implement MediaMuxer for MP4 container creation\n   - Create clip extraction logic to capture 15 seconds before and 15 seconds after button press\n   - Ensure keyframe boundary alignment for clean extraction\n   - Maintain original video quality without re-encoding\n\n2. Metadata Embedding:\n   - Add XMP metadata to MP4 files:\n     * event_id: UUID String (RFC 4122 v4)\n     * created_at: DateTime in ISO 8601 format\n     * location data (when available)\n     * resolution, fps, and duration\n   - Calculate SHA-256 hash for file integrity verification\n\n3. Temporary Storage:\n   - Save extracted clips to getExternalFilesDir(null)\n   - Implement cleanup mechanism for temporary files\n   - Add error handling for storage space limitations",
-      "testStrategy": "1. Verify clip extraction timing accuracy\n2. Test extraction with various video resolutions\n3. Validate metadata embedding and retrieval\n4. Measure extraction performance (target: <3 seconds)\n5. Verify video quality preservation\n6. Test handling of edge cases (buffer underrun, storage full)\n7. Validate SHA-256 hash generation and verification",
-      "priority": "medium",
+      "description": "Implement functionality to extract video clips from continuous local storage when triggered by button press, maintaining original quality.",
+      "status": "pending",
       "dependencies": [
         5
       ],
-      "status": "pending",
-      "subtasks": []
+      "priority": "medium",
+      "details": "1. Continuous Local Storage:\n   - Implement GOP (Group of Pictures) of 1-2 seconds for efficient segmentation\n   - Store video in segments of 10 seconds each in a rolling buffer on disk\n   - Manage disk space with a cleanup mechanism for older segments\n\n2. Clip Extraction:\n   - When an event occurs, combine 7 segments (~70 seconds of footage) into a single temp_uuid.mp4 file\n   - Implement MediaMuxer for MP4 container creation\n   - Ensure keyframe boundary alignment for clean extraction\n   - Maintain original video quality without re-encoding\n\n3. Metadata Embedding:\n   - Add XMP metadata to MP4 files:\n     * event_id: UUID String (RFC 4122 v4)\n     * created_at: DateTime in ISO 8601 format\n     * location data (when available)\n     * resolution, fps, and duration\n   - Calculate SHA-256 hash for file integrity verification\n\n4. Temporary Storage:\n   - Save extracted clips to getExternalFilesDir(null)\n   - Implement cleanup mechanism for temporary files\n   - Add error handling for storage space limitations",
+      "testStrategy": "1. Verify segment creation and storage\n2. Test segment combination accuracy and timing\n3. Verify clip extraction with correct before/after event footage\n4. Test extraction with various video resolutions\n5. Validate metadata embedding and retrieval\n6. Measure extraction performance (target: <3 seconds)\n7. Verify video quality preservation\n8. Test handling of edge cases (missing segments, storage full)\n9. Validate SHA-256 hash generation and verification\n10. Test rolling buffer management and cleanup",
+      "subtasks": [
+        {
+          "id": 1,
+          "title": "Implement Continuous Local Storage Buffer",
+          "description": "Create a circular buffer system that continuously stores the most recent video footage locally",
+          "dependencies": [],
+          "details": "Develop a memory-efficient circular buffer that maintains the last X minutes of video footage. Implement thread-safe read/write operations, configure buffer size based on available system resources, and ensure minimal frame loss during recording. Include performance monitoring to detect and handle potential bottlenecks.",
+          "status": "pending"
+        },
+        {
+          "id": 2,
+          "title": "Develop Clip Extraction Mechanism",
+          "description": "Create functionality to extract specific time-bounded clips from the continuous buffer",
+          "dependencies": [
+            1
+          ],
+          "details": "Build an extraction system that can retrieve specific segments from the buffer based on start/end timestamps. Ensure frame accuracy at clip boundaries, implement proper synchronization to prevent buffer corruption during extraction, and optimize for minimal processing overhead. Include error handling for cases where requested timestamps are outside buffer range.",
+          "status": "pending"
+        },
+        {
+          "id": 3,
+          "title": "Implement Metadata Embedding and Integrity Verification",
+          "description": "Create systems to embed relevant metadata into extracted clips and verify their integrity",
+          "dependencies": [
+            2
+          ],
+          "details": "Develop functionality to embed timestamps, geolocation, device ID, and other relevant metadata into clip headers. Implement cryptographic signing to ensure clip authenticity and integrity. Create verification mechanisms to detect tampering or corruption. Design the system to maintain compatibility with standard video formats while including the additional metadata.",
+          "status": "pending"
+        },
+        {
+          "id": 4,
+          "title": "Develop Temporary Storage Management",
+          "description": "Create a system to manage temporary storage of extracted clips before they are uploaded or processed further",
+          "dependencies": [
+            3
+          ],
+          "details": "Implement a storage management system that handles clip retention policies, prioritizes clips based on importance, and manages disk space efficiently. Include automatic cleanup of processed clips, compression options for long-term storage, and recovery mechanisms in case of system failure. Develop monitoring tools to track storage usage and alert when thresholds are reached.",
+          "status": "pending"
+        }
+      ]
     },
     {
       "id": 7,
