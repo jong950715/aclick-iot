@@ -113,7 +113,7 @@ class SegmentedVideoRecorder(
         if (pts - segmentStartTimeUs >= SEGMENT_DURATION_US && isKey) {
             Log.d(TAG, "Rotating at PTS=$pts elapsed=${pts - segmentStartTimeUs}")
             // close old segment
-            currentMuxer?.stop()
+//            currentMuxer?.stop()
             currentMuxer?.release()
             refreshMedia(lastFilePath)
             // start new

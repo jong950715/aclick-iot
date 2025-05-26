@@ -85,17 +85,17 @@ class VideoMethodChannel() : FlutterPlugin, MethodChannel.MethodCallHandler, Act
 //            }
             "startRecording" -> {
                 rec.startRecording()
-                result.success(null)
+                result.success(true)
             }
             "stopRecording" -> {
                 rec.stopRecording()
-                result.success(null)
+                result.success(true)
             }
-//            "createEventClip" -> {
-//                val clipPath = rec.createEventClip()
-//                result.success(clipPath)
-//            }
-//            "isRecording" -> result.success(rec.isRecording())
+            "createEventClip" -> {
+                val clipPath = rec.createEventClip()
+                result.success(clipPath)
+            }
+            "isRecording" -> result.success(rec.isRecording())
             "getStorageStatus" -> result.success(rec.getStorageStatus())
             else -> result.notImplemented()
         }
