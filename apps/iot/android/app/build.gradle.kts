@@ -41,6 +41,7 @@ android {
 
 dependencies {
     implementation("com.squareup.okhttp3:okhttp:4.9.3")
+    implementation("com.googlecode.mp4parser:isoparser:1.1.22")
 }
 
 flutter {

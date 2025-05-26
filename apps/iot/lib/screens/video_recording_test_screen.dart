@@ -1,23 +1,27 @@
 import 'package:flutter/material.dart';
+import 'package:flutter_riverpod/flutter_riverpod.dart';
+import 'package:iot/services/event_clip_handler.dart';
 import 'package:iot/utils/file_path_utils.dart';
 import 'package:permission_handler/permission_handler.dart';
 import '../services/video_recording_service.dart';
 import 'dart:io';
+import 'package:riverpod/riverpod.dart';
 
-class VideoRecordingTestScreen extends StatefulWidget {
+class VideoRecordingTestScreen extends ConsumerStatefulWidget {
   const VideoRecordingTestScreen({Key? key}) : super(key: key);
 
   @override
   _VideoRecordingTestScreenState createState() => _VideoRecordingTestScreenState();
 }
 
-class _VideoRecordingTestScreenState extends State<VideoRecordingTestScreen> {
+class _VideoRecordingTestScreenState
+    extends ConsumerState<VideoRecordingTestScreen> {
   final VideoRecordingService _videoService = VideoRecordingService();
   bool _isRecording = false;
   String _statusMessage = '';
   Map<String, dynamic> _storageStatus = {};
   String? _lastClipPath;
-  
+
   // 설정 관련 상태
   final TextEditingController _segmentSecondsController = TextEditingController(text: '10');
   final TextEditingController _gopSecondsController = TextEditingController(text: '1');
@@ -114,29 +118,6 @@ class _VideoRecordingTestScreenState extends State<VideoRecordingTestScreen> {
     }
   }
   
-  // 이벤트 클립 생성
-  Future<void> _createEventClip() async {
-    try {
-      setState(() {
-        _statusMessage = '이벤트 클립 생성 중...';
-      });
-      
-      final clipPath = await _videoService.createEventClip();
-      
-      setState(() {
-        _lastClipPath = clipPath;
-        _statusMessage = clipPath != null 
-            ? '이벤트 클립 생성됨: $clipPath' 
-            : '이벤트 클립 생성 실패';
-      });
-      
-    } catch (e) {
-      setState(() {
-        _statusMessage = '오류: $e';
-      });
-    }
-  }
-  
   // 이벤트 클립을 갤러리에 저장
   Future<void> _saveClipToGallery() async {
     if (_lastClipPath == null) {
@@ -207,6 +188,7 @@ class _VideoRecordingTestScreenState extends State<VideoRecordingTestScreen> {
 
   @override
   Widget build(BuildContext context) {
+    final jobs = ref.watch(eventClipHandlerProvider).jobs;
     return Scaffold(
       appBar: AppBar(
         title: const Text('비디오 녹화 테스트'),
@@ -374,7 +356,7 @@ class _VideoRecordingTestScreenState extends State<VideoRecordingTestScreen> {
               mainAxisAlignment: MainAxisAlignment.spaceEvenly,
               children: [
                 ElevatedButton(
-                  onPressed: _isRecording ? _createEventClip : null,
+                  onPressed: _isRecording ? ref.watch(eventClipHandlerProvider).onEventDetected : null,
                   style: ElevatedButton.styleFrom(
                     backgroundColor: Colors.blue,
                     foregroundColor: Colors.white,
@@ -395,6 +377,37 @@ class _VideoRecordingTestScreenState extends State<VideoRecordingTestScreen> {
             ),
             
             const SizedBox(height: 16),
+            // 이벤트 작업 리스트
+            if (jobs.isNotEmpty) ...[
+              const Text(
+                '이벤트 작업 목록',
+                style: TextStyle(fontSize: 18, fontWeight: FontWeight.bold),
+              ),
+              const SizedBox(height: 8),
+              ListView.separated(
+                shrinkWrap: true,
+                physics: const NeverScrollableScrollPhysics(),
+                itemCount: jobs.length,
+                separatorBuilder: (_, __) => const Divider(),
+                itemBuilder: (context, index) {
+                  final job = jobs[index];
+                  final ts = DateTime.fromMillisecondsSinceEpoch(job.eventTimeMs);
+                  final timeLabel = '${ts.hour.toString().padLeft(2,'0')}:'
+                      '${ts.minute.toString().padLeft(2,'0')}:'
+                      '${ts.second.toString().padLeft(2,'0')}';
+                  return Card(
+                    child: ListTile(
+                      title: Text('이벤트 @ $timeLabel'),
+                      subtitle: Text('${job.state.runtimeType}'.replaceAll('()', '')),
+                      trailing: job.state is WaitingSegments
+                          ? const CircularProgressIndicator(strokeWidth: 2)
+                          : null,
+                    ),
+                  );
+                },
+              ),
+              const SizedBox(height: 24),
+            ],
             
             // 정보 업데이트 버튼
             SizedBox(

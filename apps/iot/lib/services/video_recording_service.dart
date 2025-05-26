@@ -115,9 +115,13 @@ class VideoRecordingService {
   /// 
   /// 현재 시점을 기준으로 전후 세그먼트를 통합하여 이벤트 클립을 생성합니다.
   /// 반환값은 생성된 클립의 파일 경로입니다.
-  Future<String?> createEventClip() async {
+  Future<String?> createEventClip(int eventTimeMs) async {
     try {
-      return await _channel.invokeMethod('createEventClip');
+      final String? uri = await _channel.invokeMethod<String>(
+        'createEventClip',
+        { 'eventTimeMs': eventTimeMs },
+      );
+      return uri;
     } catch (e) {
       print('이벤트 클립 생성 오류: $e');
       return null;

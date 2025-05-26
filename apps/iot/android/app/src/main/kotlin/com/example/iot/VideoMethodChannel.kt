@@ -6,6 +6,7 @@ import android.os.Build
 import androidx.core.app.ActivityCompat
 import android.Manifest
 import android.content.pm.PackageManager
+import androidx.annotation.RequiresPermission
 import io.flutter.embedding.engine.plugins.FlutterPlugin
 import io.flutter.embedding.engine.plugins.activity.ActivityAware
 import io.flutter.embedding.engine.plugins.activity.ActivityPluginBinding
@@ -50,6 +51,7 @@ class VideoMethodChannel() : FlutterPlugin, MethodChannel.MethodCallHandler, Act
         recorder = null
     }
 
+    @RequiresPermission(Manifest.permission.CAMERA)
     override fun onMethodCall(call: MethodCall, result: MethodChannel.Result) {
         val rec = recorder ?: run {
             result.error("NO_RECORDER", "Recorder not initialized", null)
@@ -92,11 +94,12 @@ class VideoMethodChannel() : FlutterPlugin, MethodChannel.MethodCallHandler, Act
                 result.success(true)
             }
             "createEventClip" -> {
-                val clipPath = rec.createEventClip()
-                result.success(clipPath)
+                val eventTimeMs = call.argument<Long>("eventTimeMs")?: return result.error("NO_TIME", "eventTimeMs 누락", null)
+                val uri = rec.createEventClip(eventTimeMs)
+                result.success(uri?.toString())
             }
-            "isRecording" -> result.success(rec.isRecording())
-            "getStorageStatus" -> result.success(rec.getStorageStatus())
+//            "isRecording" -> result.success(rec.isRecording()) TODO
+//            "getStorageStatus" -> result.success(rec.getStorageStatus()) TODO
             else -> result.notImplemented()
         }
     }

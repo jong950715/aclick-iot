@@ -1,22 +1,32 @@
 package com.example.iot
 
+import android.Manifest
+import android.content.ContentValues
 import android.content.Context
-import android.content.Intent
-import android.hardware.camera2.*
+import android.hardware.camera2.CameraCaptureSession
+import android.hardware.camera2.CameraDevice
+import android.hardware.camera2.CameraManager
 import android.media.MediaCodec
 import android.media.MediaCodec.BufferInfo
+import android.media.MediaCodecInfo
 import android.media.MediaFormat
 import android.media.MediaMuxer
-import android.media.MediaScannerConnection
-import android.media.MediaCodecInfo
 import android.net.Uri
+import android.os.Build
 import android.os.Environment
 import android.os.Handler
 import android.os.HandlerThread
-import android.os.StatFs
+import android.provider.MediaStore
 import android.util.Log
 import android.view.Surface
-import java.io.File
+import androidx.annotation.RequiresPermission
+import com.googlecode.mp4parser.authoring.Movie
+import com.googlecode.mp4parser.authoring.Track
+import com.googlecode.mp4parser.authoring.builder.DefaultMp4Builder
+import com.googlecode.mp4parser.authoring.container.mp4.MovieCreator
+import com.googlecode.mp4parser.authoring.tracks.AppendTrack
+import kotlinx.coroutines.runBlocking
+import java.io.FileOutputStream
 import java.text.SimpleDateFormat
 import java.util.Date
 import java.util.Locale
@@ -24,79 +34,58 @@ import java.util.Locale
 /**
  * SegmentedVideoRecorder records continuous video and splits it into
  * 10-second segments at I-frame boundaries automatically.
- * Files are saved under Movies/Aclick and registered to MediaStore.
+ * It also allows merging segments around an event timestamp using mp4parser.
  */
 class SegmentedVideoRecorder(
     private val context: Context,
-    private val cameraId: String
+    private val cameraId: String,
+    private val segmentRepo: SegmentRepository = MediaStoreSegmentRepository(context)
 ) : MediaCodec.Callback() {
+
     companion object {
         private const val TAG = "SegmentedVideoRecorder"
         private const val MIME_TYPE = "video/avc"
         private const val FRAME_RATE = 30
-        private const val I_FRAME_INTERVAL = 2            // GOP size in seconds
-        private const val BIT_RATE = 2_000_000            // 2 Mbps
-        private const val SEGMENT_DURATION_US = 10_000_000L // 10 seconds
-        private const val DIR_NAME = "Aclick"           // under Movies/
-        private const val MAX_STORAGE_MB = 32L * 1024    // 32 GB default
+        private const val I_FRAME_INTERVAL = 2              // GOP size in seconds
+        private const val BIT_RATE = 2_000_000               // 2 Mbps
+        private const val SEGMENT_DURATION_US = 10_000_000L  // 10 seconds
     }
 
+    private var encoder: MediaCodec? = null
+    private var inputSurface: Surface? = null
+    private var muxer: MediaMuxer? = null
+    private var currentSegment: Segment? = null
+    private var videoTrackIndex = -1
+    private var segmentStartTimeUs = -1L
+
+    private lateinit var handlerThread: HandlerThread
+    private lateinit var handler: Handler
     private var cameraDevice: CameraDevice? = null
     private var captureSession: CameraCaptureSession? = null
 
-    private lateinit var encoder: MediaCodec
-    private lateinit var codecThread: HandlerThread
-    private lateinit var codecHandler: Handler
-    private lateinit var inputSurface: Surface
-
-    private var currentMuxer: MediaMuxer? = null
-    private var videoTrackIndex = -1
-    private var segmentStartTimeUs = -1L
-    private var segmentIndex = 0
-    private var lastFilePath: String? = null
-
-    /** Initializes encoder and opens camera. */
+    @RequiresPermission(Manifest.permission.CAMERA)
     fun init() {
+        handlerThread = HandlerThread("CodecThread").apply { start() }
+        handler = Handler(handlerThread.looper)
         prepareEncoder()
         openCamera()
     }
 
-    /** Starts segmented recording, auto-inits if needed. */
+    @RequiresPermission(Manifest.permission.CAMERA)
     fun startRecording() {
-        Log.d(TAG, "startRecording() called")
-        if (!::encoder.isInitialized) init()
-        segmentIndex = 0
+        if (encoder == null) init()
         segmentStartTimeUs = -1L
-        createNewMuxer()
-        buildCaptureSession()
+        createNewSegment()
+        inputSurface?.let { startCaptureSession(it) }
     }
 
-    /** Signals end-of-stream; cleanup on callback. */
     fun stopRecording() {
-        Log.d(TAG, "stopRecording() called")
-        encoder.signalEndOfInputStream()
-        captureSession?.stopRepeating()
-        captureSession?.abortCaptures()
+        encoder?.signalEndOfInputStream()
     }
 
-    /** Returns storage status for segment directory. */
-    fun getStorageStatus(): Map<String, Any> {
-        val dir = getOutputDir()
-        val files = dir.listFiles() ?: emptyArray()
-        val count = files.size
-        val totalMB = files.sumOf { it.length() } / (1024 * 1024)
-        val availableMB = StatFs(dir.path).availableBytes / (1024 * 1024)
-        return mapOf(
-            "totalSegmentSizeMB" to totalMB,
-            "availableSpaceMB" to availableMB,
-            "segmentCount" to count,
-            "maxStorageSizeMB" to MAX_STORAGE_MB
-        )
-    }
-
-    // MediaCodec.Callback implementations
+    // Implement required MediaCodec.Callback methods
     override fun onInputBufferAvailable(codec: MediaCodec, index: Int) {
-        // Not used: we push data via Surface input.
+        // Not used for Surface input
     }
 
     override fun onOutputBufferAvailable(codec: MediaCodec, index: Int, info: BufferInfo) {
@@ -107,146 +96,184 @@ class SegmentedVideoRecorder(
         val pts = info.presentationTimeUs
         if (segmentStartTimeUs < 0) {
             segmentStartTimeUs = pts
-            Log.d(TAG, "New segment start PTS=$segmentStartTimeUs")
         }
         val isKey = info.flags and MediaCodec.BUFFER_FLAG_KEY_FRAME != 0
         if (pts - segmentStartTimeUs >= SEGMENT_DURATION_US && isKey) {
-            Log.d(TAG, "Rotating at PTS=$pts elapsed=${pts - segmentStartTimeUs}")
-            // close old segment
-//            currentMuxer?.stop()
-            currentMuxer?.release()
-            refreshMedia(lastFilePath)
-            // start new
-            createNewMuxer()
+            closeCurrentMuxer(pts)
+            createNewSegment()
         }
-        // write frame
         val buffer = codec.getOutputBuffer(index)!!
-        currentMuxer?.writeSampleData(videoTrackIndex, buffer, info)
+        muxer?.writeSampleData(videoTrackIndex, buffer, info)
         codec.releaseOutputBuffer(index, false)
-        // handle EOS
+
         if (info.flags and MediaCodec.BUFFER_FLAG_END_OF_STREAM != 0) {
-            Log.d(TAG, "EOS reached, cleaning up")
-            releaseResources()
-            refreshMedia(lastFilePath)
+            closeCurrentMuxer(pts)
+            release()
         }
+    }
+
+    override fun onOutputFormatChanged(codec: MediaCodec, format: MediaFormat) {
+        // Handle format changes if needed
     }
 
     override fun onError(codec: MediaCodec, e: MediaCodec.CodecException) {
         Log.e(TAG, "Encoder error", e)
-        releaseResources()
+        release()
     }
 
-    override fun onOutputFormatChanged(codec: MediaCodec, format: MediaFormat) {
-        // No-op
-    }
-
-    // Internal helpers
     private fun prepareEncoder() {
-        codecThread = HandlerThread("CodecThread").apply { start() }
-        codecHandler = Handler(codecThread.looper)
         encoder = MediaCodec.createEncoderByType(MIME_TYPE).apply {
-            val fmt = MediaFormat.createVideoFormat(MIME_TYPE, 1920, 1080).apply {
+            val format = MediaFormat.createVideoFormat(MIME_TYPE, 1920, 1080).apply {
                 setInteger(MediaFormat.KEY_COLOR_FORMAT,
                     MediaCodecInfo.CodecCapabilities.COLOR_FormatSurface)
                 setInteger(MediaFormat.KEY_BIT_RATE, BIT_RATE)
                 setInteger(MediaFormat.KEY_FRAME_RATE, FRAME_RATE)
                 setInteger(MediaFormat.KEY_I_FRAME_INTERVAL, I_FRAME_INTERVAL)
             }
-            configure(fmt, null, null, MediaCodec.CONFIGURE_FLAG_ENCODE)
-            setCallback(this@SegmentedVideoRecorder, codecHandler)
+            configure(format, null, null, MediaCodec.CONFIGURE_FLAG_ENCODE)
+            setCallback(this@SegmentedVideoRecorder, handler)
             inputSurface = createInputSurface()
             start()
         }
     }
 
-    private fun openCamera() {
-        val mgr = context.getSystemService(Context.CAMERA_SERVICE) as CameraManager
-        mgr.openCamera(cameraId, object : CameraDevice.StateCallback() {
-            override fun onOpened(device: CameraDevice) {
-                cameraDevice = device
-            }
-            override fun onDisconnected(device: CameraDevice) {
-                Log.w(TAG, "Camera disconnected")
-                device.close()
-                cameraDevice = null
-            }
-            override fun onError(device: CameraDevice, error: Int) {
-                Log.e(TAG, "Camera error $error")
-                device.close()
-                cameraDevice = null
-            }
-        }, codecHandler)
-    }
+    private fun createNewSegment() {
+        val now = System.currentTimeMillis()
+        val ts = SimpleDateFormat("yyyyMMdd_HHmmss", Locale.US).format(Date(now))
+        val fileName = "${ts}_seg.mp4"
 
-    private fun buildCaptureSession() {
-        cameraDevice?.createCaptureSession(
-            listOf(inputSurface),
-            object : CameraCaptureSession.StateCallback() {
-                override fun onConfigured(session: CameraCaptureSession) {
-                    captureSession = session
-                    session.setRepeatingRequest(
-                        cameraDevice!!.createCaptureRequest(CameraDevice.TEMPLATE_RECORD)
-                            .apply { addTarget(inputSurface) }.build(),
-                        null, codecHandler
-                    )
+        currentSegment = runBlocking { segmentRepo.insertSegment(fileName, now) }
+        currentSegment?.uri?.let { uri ->
+            context.contentResolver.openFileDescriptor(uri, "rw")?.use { pfd ->
+                muxer = MediaMuxer(
+                    pfd.fileDescriptor,
+                    MediaMuxer.OutputFormat.MUXER_OUTPUT_MPEG_4
+                ).apply {
+                    videoTrackIndex = addTrack(encoder!!.outputFormat)
+                    start()
                 }
-                override fun onConfigureFailed(session: CameraCaptureSession) {
-                    Log.e(TAG, "CaptureSession configure failed")
-                }
-            }, codecHandler
-        )
-    }
-
-    private fun createNewMuxer() {
-        val base = Environment.getExternalStoragePublicDirectory(Environment.DIRECTORY_MOVIES)
-        val dir = File(base, DIR_NAME).apply { if (!exists()) mkdirs() }
-        val ts = SimpleDateFormat("yyyyMMdd_HHmmss", Locale.US).format(Date())
-        val name = "${ts}_seg${segmentIndex++}.mp4"
-        val path = File(dir, name).absolutePath
-        lastFilePath = path
-        Log.d(TAG, "Creating muxer: $path")
-        currentMuxer = MediaMuxer(path, MediaMuxer.OutputFormat.MUXER_OUTPUT_MPEG_4).apply {
-            videoTrackIndex = addTrack(encoder.outputFormat)
-            start()
+            }
         }
         segmentStartTimeUs = -1L
     }
 
-    private fun getOutputDir(): File =
-        File(Environment.getExternalStoragePublicDirectory(Environment.DIRECTORY_MOVIES), DIR_NAME)
+    /**
+     * Merges segments around an event timestamp using mp4parser and writes directly to MediaStore.
+     */
+    fun createEventClip(eventTimeMs: Long): Uri? {
+        val TAG = "EventMuxParser"
+        val fromMs = eventTimeMs - 10_000L
+        val toMs = eventTimeMs + 10_000L
+
+        val segments = runBlocking { segmentRepo.querySegments(fromMs, toMs) }
+        Log.d(TAG, "querySegments -> ${segments.size} segs  [$fromMs,$toMs]")
+        if (segments.isEmpty()) return null
+
+        val eventName = "${SimpleDateFormat("yyyyMMdd_HHmmss", Locale.US).format(Date())}_event.mp4"
+        val values = ContentValues().apply {
+            put(MediaStore.Video.Media.DISPLAY_NAME, eventName)
+            put(MediaStore.Video.Media.MIME_TYPE, "video/mp4")
+            if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.Q) {
+                put(MediaStore.Video.Media.RELATIVE_PATH,
+                    "${Environment.DIRECTORY_MOVIES}/Aclick/Events")
+                put(MediaStore.Video.Media.IS_PENDING, 1)
+            }
+        }
+        val outUri = context.contentResolver.insert(
+            MediaStore.Video.Media.EXTERNAL_CONTENT_URI, values) ?: return null
+        Log.d(TAG, "output uri = $outUri")
+
+        val videoTracks = mutableListOf<Track>()
+        val audioTracks = mutableListOf<Track>()
+        for (seg in segments) {
+            val path = uriToFilePath(seg.uri)
+            if (path == null) {
+                Log.w(TAG, "cannot resolve path for ${seg.uri}")
+                continue
+            }
+            val movie = MovieCreator.build(path)
+            movie.tracks.forEach { track ->
+                when (track.handler) {
+                    "vide" -> videoTracks += track
+                    "soun" -> audioTracks += track
+                }
+            }
+        }
+
+        val result = Movie().apply {
+            if (videoTracks.isNotEmpty()) addTrack(AppendTrack(*videoTracks.toTypedArray()))
+            if (audioTracks.isNotEmpty()) addTrack(AppendTrack(*audioTracks.toTypedArray()))
+        }
+        val container = DefaultMp4Builder().build(result)
+
+        context.contentResolver.openFileDescriptor(outUri, "rw")?.use { pfd ->
+            FileOutputStream(pfd.fileDescriptor).channel.use { fc -> container.writeContainer(fc) }
+        }
+
+        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.Q) {
+            values.clear()
+            values.put(MediaStore.Video.Media.IS_PENDING, 0)
+            context.contentResolver.update(outUri, values, null, null)
+        }
+
+        Log.d(TAG, "merge done, uri=$outUri")
+        return outUri
+    }
 
     /**
-     * Notifies media scanner to index the given file path.
+     * Resolves a content URI to an absolute file system path via MediaStore DATA column.
      */
-    private fun refreshMedia(path: String?) {
-        if (path == null) return
-        val file = File(path)
-        try {
-            if (android.os.Build.VERSION.SDK_INT < 29) {
-                context.sendBroadcast(
-                    Intent(Intent.ACTION_MEDIA_SCANNER_SCAN_FILE, Uri.fromFile(file)))
-            } else {
-                MediaScannerConnection.scanFile(
-                    context,
-                    arrayOf(file.toString()),
-                    arrayOf("video/mp4"),
-                    null
-                )
+    private fun uriToFilePath(uri: Uri): String? {
+        val proj = arrayOf(MediaStore.MediaColumns.DATA)
+        context.contentResolver.query(uri, proj, null, null, null)?.use { cursor ->
+            if (cursor.moveToFirst()) {
+                val idx = cursor.getColumnIndexOrThrow(MediaStore.MediaColumns.DATA)
+                return cursor.getString(idx)
             }
-            Log.d(TAG, "Media refreshed: $path")
-        } catch (e: Exception) {
-            Log.e(TAG, "Media refresh error", e)
+        }
+        return null
+    }
+
+    private fun closeCurrentMuxer(endPtsUs: Long) {
+        muxer?.stop()
+        muxer?.release()
+        muxer = null
+        currentSegment?.let { seg ->
+            val durationMs = (endPtsUs - segmentStartTimeUs) / 1000
+            runBlocking { segmentRepo.updateDuration(seg, durationMs) }
         }
     }
 
-    private fun releaseResources() {
-        try { encoder.stop() } catch (_: Exception) {}
-        try { encoder.release() } catch (_: Exception) {}
-        try { currentMuxer?.stop() } catch (_: Exception) {}
-        try { currentMuxer?.release() } catch (_: Exception) {}
-        captureSession?.close()
-        cameraDevice?.close()
-        try { if (codecThread.isAlive) codecThread.quitSafely() } catch (_: Exception) {}
-        Log.d(TAG, "Resources released")
+    @RequiresPermission(Manifest.permission.CAMERA)
+    private fun openCamera() {
+        val mgr = context.getSystemService(Context.CAMERA_SERVICE) as CameraManager
+        mgr.openCamera(cameraId, object : CameraDevice.StateCallback() {
+            override fun onOpened(device: CameraDevice) { cameraDevice = device }
+            override fun onDisconnected(device: CameraDevice) { device.close(); cameraDevice = null }
+            override fun onError(device: CameraDevice, error: Int) { device.close(); cameraDevice = null }
+        }, handler)
+    }
+
+    private fun startCaptureSession(surface: Surface) {
+        cameraDevice?.createCaptureSession(
+            listOf(surface),
+            object : CameraCaptureSession.StateCallback() {
+                override fun onConfigured(session: CameraCaptureSession) {
+                    captureSession = session
+                    val req = cameraDevice!!.createCaptureRequest(CameraDevice.TEMPLATE_RECORD)
+                        .apply { addTarget(surface) }.build()
+                    session.setRepeatingRequest(req, null, handler)
+                }
+                override fun onConfigureFailed(session: CameraCaptureSession) {
+                    Log.e(TAG, "CaptureSession configure failed")
+                }
+            }, handler)
+    }
+
+    private fun release() {
+        try { encoder?.stop() } catch (_: Exception) {}
+        try { encoder?.release() } catch (_: Exception) {}
+        handlerThread.quitSafely()
+        Log.d(TAG, "Recorder released")
     }
 }
