@@ -33,3 +33,42 @@
 5. Verify JWT validation and authorization
 6. Test error handling and recovery
 7. Validate chunked upload and resumption capability
+
+# Subtasks:
+## 1. Jetty Server Setup with TLS Configuration [pending]
+### Dependencies: None
+### Description: Configure and initialize a Jetty server with proper TLS/SSL settings for secure HTTPS communication
+### Details:
+1. Add Jetty server dependencies to the project
+2. Create server configuration with appropriate port settings
+3. Generate or import SSL certificates
+4. Configure TLS parameters (protocols, cipher suites)
+5. Implement proper certificate validation
+6. Set up HTTPS connector with the TLS configuration
+7. Test server startup and TLS handshake
+
+## 2. API Endpoint Implementation [pending]
+### Dependencies: 7.1
+### Description: Develop RESTful API endpoints for video upload initiation and status checking
+### Details:
+1. Design API contract (endpoints, request/response formats)
+2. Implement endpoint for upload initiation that returns upload ID
+3. Create status checking endpoint that returns current upload progress
+4. Add authentication/authorization mechanisms
+5. Implement request validation
+6. Add error handling and appropriate HTTP status codes
+7. Document API endpoints
+
+## 3. File Reception with Chunked Transfer [pending]
+### Dependencies: 7.1, 7.2
+### Description: Implement the file reception system with support for chunked transfer encoding and upload resumption
+### Details:
+1. Create temporary storage for incoming file chunks
+2. Implement chunked transfer handling
+3. Add support for Content-Range header to track upload progress
+4. Develop mechanism to identify and resume interrupted uploads
+5. Implement file reassembly from chunks
+6. Add integrity verification for completed uploads
+7. Create cleanup mechanism for abandoned uploads
+8. Optimize for memory efficiency with large files
+

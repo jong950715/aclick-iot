@@ -42,13 +42,13 @@
 10. Test rolling buffer management and cleanup
 
 # Subtasks:
-## 1. Implement Continuous Local Storage Buffer [pending]
+## 1. Implement Continuous Local Storage Buffer [done]
 ### Dependencies: None
 ### Description: Create a circular buffer system that continuously stores the most recent video footage locally
 ### Details:
 Develop a memory-efficient circular buffer that maintains the last X minutes of video footage. Implement thread-safe read/write operations, configure buffer size based on available system resources, and ensure minimal frame loss during recording. Include performance monitoring to detect and handle potential bottlenecks.
 
-## 2. Develop Clip Extraction Mechanism [pending]
+## 2. Develop Clip Extraction Mechanism [done]
 ### Dependencies: 6.1
 ### Description: Create functionality to extract specific time-bounded clips from the continuous buffer
 ### Details:
@@ -65,4 +65,28 @@ Develop functionality to embed timestamps, geolocation, device ID, and other rel
 ### Description: Create a system to manage temporary storage of extracted clips before they are uploaded or processed further
 ### Details:
 Implement a storage management system that handles clip retention policies, prioritizes clips based on importance, and manages disk space efficiently. Include automatic cleanup of processed clips, compression options for long-term storage, and recovery mechanisms in case of system failure. Develop monitoring tools to track storage usage and alert when thresholds are reached.
+
+## 5. Implement Continuous Local Storage Buffer [pending]
+### Dependencies: None
+### Description: Create a system for continuously storing video data in a local buffer that maintains a rolling window of recent footage.
+### Details:
+Develop a circular buffer mechanism that efficiently writes incoming video streams to local storage. Implement configurable buffer size parameters based on time duration and/or file size. Ensure minimal performance impact on the main application. Include error handling for disk space issues and I/O errors.
+
+## 6. Develop Clip Extraction Functionality [pending]
+### Dependencies: 6.5
+### Description: Create methods to extract specific time-bounded video clips from the continuous buffer when triggered.
+### Details:
+Implement functions to identify and extract precise segments from the buffer based on start/end timestamps. Ensure frame accuracy at clip boundaries. Handle edge cases like clips that span buffer wraparound points. Optimize for minimal processing time and memory usage during extraction.
+
+## 7. Implement Metadata Embedding and Verification [pending]
+### Dependencies: 6.6
+### Description: Create a system to embed essential metadata into extracted clips and verify their integrity.
+### Details:
+Develop methods to embed timestamps, geolocation, device ID, and other relevant metadata into clip files. Implement cryptographic signing or hashing to ensure clip authenticity and detect tampering. Create verification functions that can validate clip integrity. Document the metadata schema for future reference.
+
+## 8. Develop Temporary Storage Management [pending]
+### Dependencies: 6.7
+### Description: Create a system to manage the lifecycle of extracted clips in temporary storage.
+### Details:
+Implement configurable retention policies for extracted clips. Develop automatic cleanup processes to prevent storage overflow. Create monitoring tools to track storage usage. Implement prioritization logic for clip retention when space is limited. Ensure thread-safe operations for concurrent clip management.
 

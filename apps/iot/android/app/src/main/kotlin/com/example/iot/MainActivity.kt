@@ -1,11 +1,12 @@
 package com.example.iot
 
 import android.os.Bundle
+import com.example.my_volume_app.VolumeKeyActivity
 import io.flutter.embedding.android.FlutterActivity
 import io.flutter.embedding.engine.FlutterEngine
 import io.flutter.plugin.common.MethodChannel
 
-class MainActivity: FlutterActivity() {
+class MainActivity: VolumeKeyActivity() {
     private val NETWORK_CHANNEL = "com.example.iot/network"
 
     private lateinit var wifiMgr: EphemeralWifiManager

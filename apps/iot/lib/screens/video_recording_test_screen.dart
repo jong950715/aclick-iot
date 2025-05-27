@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:iot/services/event_clip_handler.dart';
+import 'package:iot/services/volume_key_manager.dart';
 import 'package:iot/utils/file_path_utils.dart';
 import 'package:permission_handler/permission_handler.dart';
 import '../services/video_recording_service.dart';
@@ -21,6 +22,7 @@ class _VideoRecordingTestScreenState
   String _statusMessage = '';
   Map<String, dynamic> _storageStatus = {};
   String? _lastClipPath;
+  final VolumeKeyManager _volumeKeyManager = VolumeKeyManager();
 
   // 설정 관련 상태
   final TextEditingController _segmentSecondsController = TextEditingController(text: '10');
@@ -35,6 +37,7 @@ class _VideoRecordingTestScreenState
     WidgetsBinding.instance.addPostFrameCallback(
           (_) {
         _requestPermissions();
+        _initButton();
       },
     );
   }
@@ -51,6 +54,12 @@ class _VideoRecordingTestScreenState
     _fsyncIntervalController.dispose();
     _maxStorageMBController.dispose();
     super.dispose();
+  }
+
+  void _initButton() {
+    _volumeKeyManager.setOnVolumeUpCallback(() {
+      if(_isRecording) ref.watch(eventClipHandlerProvider).onEventDetected();
+    },);
   }
 
   Future<void> _requestPermissions() async {

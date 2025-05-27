@@ -3,7 +3,7 @@ import 'dart:convert';
 import 'package:flutter/services.dart';
 import 'package:http/http.dart';
 
-class NetworkHelper {
+class EphemeralNetworkHelper {
   static const _channel = MethodChannel('com.example.iot/network');
 
   /// 에페메랄 Wi-Fi 연결

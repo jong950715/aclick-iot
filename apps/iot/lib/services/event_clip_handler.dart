@@ -2,6 +2,7 @@ import 'dart:async';
 import 'package:flutter/foundation.dart';
 import 'package:flutter/services.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
+import 'package:iot/services/sound_manager.dart';
 
 /// Flutter ⇄ Native 통신 채널
 const _channel = MethodChannel('com.example.iot/video_recording');
@@ -36,11 +37,16 @@ class EventJob {
 
   void dispose() => subscription.cancel();
 }
-final eventClipHandlerProvider = ChangeNotifierProvider((_) => EventClipHandler());
+final eventClipHandlerProvider = ChangeNotifierProvider((ref) {
+  return EventClipHandler(soundManager: ref.watch(soundManagerProvider));
+},);
 /// ChangeNotifier 핸들러 (Riverpod Provider로 등록)
 class EventClipHandler extends ChangeNotifier {
   final List<EventJob> jobs = [];
   int? _lastEventTimeMs;
+  final SoundManager _soundManager;
+
+  EventClipHandler({required SoundManager soundManager}) : _soundManager = soundManager;
 
   /// 이벤트 하나당 독립 스트림 생성 유틸
   Stream<EventClipState> createEventClipStream(int eventTimeMs) async* {
@@ -60,12 +66,15 @@ class EventClipHandler extends ChangeNotifier {
         // 추후: yield Uploading(uri); yield UploadSuccess(uri);
       } else {
         print('[EventClipHandler] 클립 생성 실패');
+        _soundManager.playError();
         yield const Failure('클립 생성 실패');
       }
     } on PlatformException catch (e) {
       print('[EventClipHandler] 알 수 없는 오류');
+      _soundManager.playError();
       yield Failure(e.message ?? '알 수 없는 오류');
     } catch (e) {
+      _soundManager.playError();
       yield Failure(e.toString());
     }
   }
@@ -83,12 +92,14 @@ class EventClipHandler extends ChangeNotifier {
     final job = EventJob(now, createEventClipStream(now));
     jobs.add(job);
     notifyListeners();
+    _soundManager.playEvent();
 
     // Job 완료(스트림 종료) 시점에 리스트에서 제거
     job.subscription.onDone(() {
       jobs.remove(job);
       job.dispose();
       notifyListeners();
+      _soundManager.playSaved();
     });
   }
 

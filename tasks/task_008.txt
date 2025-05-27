@@ -36,3 +36,23 @@
 5. Measure database performance with large event counts
 6. Test FIFO storage management
 7. Verify directory structure creation and management
+
+# Subtasks:
+## 1. Implement Event Model with Protobuf [pending]
+### Dependencies: None
+### Description: Define and implement the Event data model using Protocol Buffers (Protobuf) for efficient serialization and cross-platform compatibility.
+### Details:
+Create .proto files defining the Event schema with all necessary fields (id, title, description, date, location, participants, etc.). Generate code for both IoT and smartphone platforms. Ensure the model supports all required event operations and validation rules. Include documentation for the schema design decisions.
+
+## 2. Implement State Management with Riverpod [pending]
+### Dependencies: 8.1
+### Description: Develop a comprehensive state management solution using Riverpod to handle event data across the application.
+### Details:
+Create providers for event creation, retrieval, updating, and deletion. Implement state notifiers for reactive UI updates. Design a clean architecture that separates UI, business logic, and data layers. Include error handling and loading states. Ensure efficient state updates that minimize rebuilds.
+
+## 3. Implement Persistence Layer for IoT and Smartphone Apps [pending]
+### Dependencies: 8.1, 8.2
+### Description: Develop persistence mechanisms to store and retrieve event data on both IoT devices and smartphones.
+### Details:
+For smartphones: Implement local storage using SQLite or Hive. For IoT devices: Create an efficient storage solution considering limited resources. Develop synchronization mechanisms between devices. Implement data migration strategies for schema updates. Add data backup and recovery features. Ensure thread-safe operations for concurrent access.
+
