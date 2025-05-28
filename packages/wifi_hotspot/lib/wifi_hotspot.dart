@@ -47,7 +47,6 @@ class HotspotInfo {
 
 class WifiHotspot {
   static const MethodChannel _channel = MethodChannel('com.example.wifi/hotspot');
-  
   /// Starts a local-only Wi-Fi hotspot.
   /// 
   /// Returns a [HotspotInfo] containing the SSID, password, and IP address of the hotspot.

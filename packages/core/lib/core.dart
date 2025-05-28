@@ -18,3 +18,6 @@ export 'src/repositories/repositories.dart';
 
 // Export constants
 export 'src/constants/constants.dart';
+
+// Export models
+export 'src/models/models.dart';

@@ -1,15 +1,121 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
-import '../viewmodels/log_view_model.dart';
+import 'package:iot/repositories/app_logger.dart';
+import 'package:iot/services/event_clip_handler.dart';
+import 'package:iot/services/file_server_service.dart';
+import 'package:iot/services/wifi_hotspot_service.dart';
+import 'package:iot/services/ble_manager.dart';
+import 'package:iot/viewmodels/app_view_model.dart';
+import '../services/video_recording_service.dart';
 import '../theme/app_theme.dart';
+import '../models/control_button.dart';
 
-class ControlButtonsView extends ConsumerWidget {
+class ControlButtonsView extends ConsumerStatefulWidget {
   const ControlButtonsView({super.key});
 
   @override
-  Widget build(BuildContext context, WidgetRef ref) {
-    final logViewModel = ref.read(logViewModelProvider.notifier);
-    
+  ConsumerState<ControlButtonsView> createState() => _ControlButtonsViewState();
+}
+
+class _ControlButtonsViewState extends ConsumerState<ControlButtonsView> {
+  late final List<ControlButton> controlButtons;
+  late final AppViewModel _vm;
+
+  @override
+  initState() {
+    super.initState();
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      _vm = ref.read(appViewModelProvider.notifier);
+      _vm.initialize();
+    });
+    controlButtons = [
+      ControlButton(
+        id: 'scan',
+        label: '1.scan\n15s',
+        icon: Icons.search,
+        color: Colors.green,
+        logMessage: 'Scan Start pressed',
+        onPressed: () async {
+          await scan();
+        },
+      ),
+      ControlButton(
+        id: 'connect',
+        label: '2.connect',
+        icon: Icons.bluetooth,
+        color: AppTheme.primaryColor,
+        logMessage: 'connect button pressed',
+        onPressed: () async {
+          await connect();
+        },
+      ),
+      ControlButton(
+        id: 'hotspot',
+        label: '3.hotspot',
+        icon: Icons.wifi,
+        color: Colors.tealAccent,
+        logMessage: 'hotspot button pressed',
+        onPressed: () async {
+          await ref.read(wifiHotspotServiceProvider.notifier).startHotspot();
+        },
+      ),
+      ControlButton(
+        id: 'send',
+        label: '4.send\nssid/pw',
+        icon: Icons.send,
+        color: Colors.purpleAccent,
+        logMessage: 'Send wifi pressed',
+        onPressed: () async {
+          _vm.sendWifiCredential();
+        },
+      ),
+      ControlButton(
+        id: 'start server',
+        label: '5.start\nserver',
+        icon: Icons.miscellaneous_services,
+        color: Colors.teal,
+        logMessage: 'start server button pressed',
+        onPressed: () {
+          ref.read(fileServerServiceProvider.notifier).startServer();
+        },
+      ),
+      ControlButton(
+        id: 'record',
+        label: '6.record',
+        icon: Icons.fiber_smart_record,
+        color: Colors.red,
+        logMessage: 'record button pressed',
+        onPressed: () {
+          ref.read(videoRecordingServiceProvider).startRecording();
+        },
+      ),
+      ControlButton(
+        id: 'emit event',
+        label: '7.emit event',
+        icon: Icons.ac_unit,
+        color: Colors.indigo,
+        logMessage: 'emit event button pressed',
+        onPressed: () {
+          ref.read(eventClipHandlerProvider).onEventDetected();
+        },
+      ),
+      ControlButton(
+        id: 'ping',
+        label: 'ping',
+        icon: Icons.network_ping,
+        color: Colors.orange,
+        logMessage: 'ping button pressed',
+        onPressed: () async {
+          await ping();
+        },
+      ),
+    ];
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    final logViewModel = ref.read(appLoggerProvider.notifier);
+
     return Container(
       padding: const EdgeInsets.symmetric(horizontal: 16.0, vertical: 20.0),
       decoration: BoxDecoration(
@@ -22,64 +128,29 @@ class ControlButtonsView extends ConsumerWidget {
           ),
         ],
       ),
-      child: SingleChildScrollView(
-        child: Column(
-          crossAxisAlignment: CrossAxisAlignment.stretch,
-          children: [
-            // 첫번째 줄 버튼 그룹 (2개)
-            Row(
-              children: [
-                Expanded(
-                  child: _buildControlButton(
-                    'Connect',
-                    Icons.bluetooth,
-                    Colors.blue,
-                    () => logViewModel.logInfo('Connect button pressed'),
-                  ),
-                ),
-                const SizedBox(width: 12),
-                Expanded(
-                  child: _buildControlButton(
-                    'Scan',
-                    Icons.search,
-                    Colors.green,
-                    () => logViewModel.logInfo('Scan button pressed'),
-                  ),
-                ),
-              ],
-            ),
-            const SizedBox(height: 12),
-            // 두번째 줄 버튼 그룹 (2개)
-            Row(
-              children: [
-                Expanded(
-                  child: _buildControlButton(
-                    'Send',
-                    Icons.send,
-                    Colors.orange,
-                    () => logViewModel.logInfo('Send button pressed'),
-                  ),
-                ),
-                const SizedBox(width: 12),
-                Expanded(
-                  child: _buildControlButton(
-                    'Reset',
-                    Icons.restart_alt,
-                    Colors.red,
-                    () => logViewModel.logInfo('Reset button pressed'),
-                  ),
-                ),
-              ],
-            ),
-            const SizedBox(height: 12),
-            // 세번째 줄 버튼 그룹 (1개)
-            _buildControlButton(
-              'Information',
-              Icons.info_outline,
-              AppTheme.secondaryColor,
-              () => logViewModel.logInfo('Info button pressed'),
-            ),
-          ],
+      child: Padding(
+        padding: const EdgeInsets.symmetric(vertical: 8.0),
+        child: GridView.builder(
+          shrinkWrap: true,
+          gridDelegate: const SliverGridDelegateWithFixedCrossAxisCount(
+            crossAxisCount: 2,
+            childAspectRatio: 2.2,
+            crossAxisSpacing: 12,
+            mainAxisSpacing: 12,
+          ),
+          itemCount: controlButtons.length,
+          itemBuilder: (context, index) {
+            final button = controlButtons[index];
+            return _buildControlButton(
+              button.label,
+              button.icon,
+              button.color,
+              () {
+                logViewModel.logInfo(button.logMessage);
+                button.onPressed();
+              },
+            );
+          },
         ),
       ),
     );
@@ -102,10 +173,11 @@ class ControlButtonsView extends ConsumerWidget {
           borderRadius: BorderRadius.circular(16),
           onTap: onPressed,
           child: Container(
-            padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
+            padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 8),
             child: Row(
-              mainAxisAlignment: MainAxisAlignment.center,
+              mainAxisAlignment: MainAxisAlignment.start,
               children: [
+                const SizedBox(width: 8),
                 Icon(icon, color: color, size: 26),
                 const SizedBox(width: 12),
                 Text(
@@ -123,5 +195,19 @@ class ControlButtonsView extends ConsumerWidget {
         ),
       ),
     );
+  }
+
+  Future<void> scan() async {
+    await ref
+        .read(bleManagerProvider.notifier)
+        .scanDuration(Duration(seconds: 15));
+  }
+
+  Future<void> connect() async {
+    await ref.read(bleManagerProvider.notifier).connect();
+  }
+
+  Future<void> ping() async {
+    await ref.read(bleManagerProvider.notifier).ping();
   }
 }

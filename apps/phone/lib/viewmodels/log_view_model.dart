@@ -11,10 +11,6 @@ class LogViewModel extends _$LogViewModel {
     // 초기 로그 추가
     return [
       LogEntry.info('System initialized'),
-      LogEntry.info('Waiting for device connection'),
-      LogEntry.debug('Scanning for available devices'),
-      LogEntry.warning('Battery level below 20%'),
-      LogEntry.info('Network status: connected'),
     ];
   }
 

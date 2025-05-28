@@ -1,18 +1,36 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
-import '../viewmodels/log_view_model.dart';
+import 'package:iot/repositories/app_logger.dart';
+import 'package:iot/services/file_server_service.dart';
+import 'package:iot/services/wifi_hotspot_service.dart';
+import 'package:iot/services/ble_manager.dart';
 import '../theme/app_theme.dart';
 import 'control_buttons_view.dart';
 import 'console_log_view.dart';
 
-class HomePage extends ConsumerWidget {
+class HomePage extends ConsumerStatefulWidget {
   final String title;
-  
+
   const HomePage({super.key, required this.title});
 
   @override
-  Widget build(BuildContext context, WidgetRef ref) {
-    final logViewModel = ref.read(logViewModelProvider.notifier);
+  ConsumerState<HomePage> createState() => _HomePageState();
+}
+
+class _HomePageState extends ConsumerState<HomePage> {
+
+  @override
+  void initState() {
+    super.initState();
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      ref.watch(wifiHotspotServiceProvider);
+      ref.watch(fileServerServiceProvider);
+    });
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    final logViewModel = ref.read(appLoggerProvider.notifier);
     
     return Scaffold(
       backgroundColor: AppTheme.scaffoldBackground,
@@ -27,7 +45,7 @@ class HomePage extends ConsumerWidget {
             ),
             const SizedBox(width: 8),
             Text(
-              title,
+              widget.title,
               style: const TextStyle(
                 fontWeight: FontWeight.bold,
                 color: Color(0xFF333333),

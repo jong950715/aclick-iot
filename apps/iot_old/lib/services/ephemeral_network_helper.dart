@@ -52,6 +52,27 @@ class EphemeralNetworkHelper {
     return Response(res['body'] as String, res['code'] as int);
   }
 
+  /// 파일 다운로드 (GET)
+  static Future<DownloadResult> downloadFileOverWifi({
+    required String url,
+    required String destFilePath,
+  }) async {
+    final res = await _channel.invokeMethod<Map<String, dynamic>>(
+      'downloadFileOverWifi',
+      {
+        'url': url,
+        'destFilePath': destFilePath,
+      },
+    );
+    if (res == null) {
+      return DownloadResult(success: false, filePath: null);
+    }
+    return DownloadResult(
+      success: res['success'] as bool,
+      filePath: res['filePath'] as String?,
+    );
+  }
+
   /// 원격에서 보내는 onResponse 이벤트(필요 시 사용)
   static void setOnResponseListener(void Function(bool, int, String?) cb) {
     _channel.setMethodCallHandler((call) async {

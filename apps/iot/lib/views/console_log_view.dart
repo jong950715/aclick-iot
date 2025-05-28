@@ -1,7 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
+import 'package:iot/repositories/app_logger.dart';
 import '../models/log_entry.dart';
-import '../viewmodels/log_view_model.dart';
 import '../theme/app_theme.dart';
 import 'dart:math' as math;
 
@@ -10,8 +10,8 @@ class ConsoleLogView extends ConsumerWidget {
 
   @override
   Widget build(BuildContext context, WidgetRef ref) {
-    final logs = ref.watch(logViewModelProvider);
-    final logViewModel = ref.read(logViewModelProvider.notifier);
+    final logs = ref.watch(appLoggerProvider);
+    final appLogger = ref.read(appLoggerProvider.notifier);
     
     return Container(
       decoration: BoxDecoration(
@@ -57,7 +57,7 @@ class ConsoleLogView extends ConsumerWidget {
                       visualDensity: VisualDensity.compact,
                       icon: const Icon(Icons.copy_outlined, color: Colors.white60),
                       onPressed: () {
-                        logViewModel.logInfo('Logs copied to clipboard');
+                        appLogger.logInfo('Logs copied to clipboard');
                       },
                     ),
                   ),
@@ -73,7 +73,7 @@ class ConsoleLogView extends ConsumerWidget {
                       iconSize: 20,
                       visualDensity: VisualDensity.compact,
                       icon: const Icon(Icons.clear_all, color: Colors.white60),
-                      onPressed: () => logViewModel.clearLogs(),
+                      onPressed: () => appLogger.clearLogs(),
                     ),
                   ),
                 ),

@@ -1,19 +1,37 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
+import 'package:phone/services/ble_service.dart';
+import 'package:phone/services/network_service.dart';
+import 'package:phone/viewmodels/new_event_clip_view_model.dart';
 import '../viewmodels/log_view_model.dart';
 import '../theme/app_theme.dart';
 import 'control_buttons_view.dart';
 import 'console_log_view.dart';
 
-class HomePage extends ConsumerWidget {
+class HomePage extends ConsumerStatefulWidget {
   final String title;
   
   const HomePage({super.key, required this.title});
 
   @override
-  Widget build(BuildContext context, WidgetRef ref) {
+  ConsumerState<HomePage> createState() => _HomePageState();
+}
+
+class _HomePageState extends ConsumerState<HomePage> {
+
+  @override
+  void initState() {
+    super.initState();
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      ref.watch(networkServiceProvider);
+      ref.watch(newEventClipViewModelProvider.notifier).initialize();
+    });
+  }
+
+  @override
+  Widget build(BuildContext context) {
     final logViewModel = ref.read(logViewModelProvider.notifier);
-    
+
     return Scaffold(
       backgroundColor: AppTheme.scaffoldBackground,
       appBar: AppBar(
@@ -27,7 +45,7 @@ class HomePage extends ConsumerWidget {
             ),
             const SizedBox(width: 8),
             Text(
-              title,
+              widget.title,
               style: const TextStyle(
                 fontWeight: FontWeight.bold,
                 color: Color(0xFF333333),
@@ -78,7 +96,7 @@ class HomePage extends ConsumerWidget {
             flex: 2,
             child: ControlButtonsView(),
           ),
-          
+
           // 하단 2 부분 - 콘솔 로그 영역 (2)
           const Flexible(
             flex: 5,

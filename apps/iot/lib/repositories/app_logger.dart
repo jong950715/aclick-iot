@@ -2,19 +2,16 @@ import 'package:riverpod_annotation/riverpod_annotation.dart';
 import '../models/log_entry.dart';
 
 // Riverpod 코드 생성을 위한 부분
-part 'log_provider.g.dart';
+part 'app_logger.g.dart';
 
 @riverpod
-class LogsNotifier extends _$LogsNotifier {
+class AppLogger extends _$AppLogger {
+
   @override
   List<LogEntry> build() {
     // 초기 로그 추가
     return [
       LogEntry.info('System initialized'),
-      LogEntry.info('Waiting for device connection'),
-      LogEntry.debug('Scanning for available devices'),
-      LogEntry.warning('Battery level below 20%'),
-      LogEntry.info('Network status: connected'),
     ];
   }
 
