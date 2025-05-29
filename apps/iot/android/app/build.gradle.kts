@@ -41,6 +41,7 @@ android {
 
 dependencies {
     implementation("com.googlecode.mp4parser:isoparser:1.1.22")
+    implementation("androidx.lifecycle:lifecycle-runtime-ktx:2.6.1")
     implementation("org.jetbrains.kotlinx:kotlinx-coroutines-android:1.6.4")
 }
 

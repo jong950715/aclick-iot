@@ -6,6 +6,8 @@ import android.os.Build
 import androidx.core.app.ActivityCompat
 import android.Manifest
 import android.content.pm.PackageManager
+import androidx.activity.ComponentActivity
+import androidx.lifecycle.lifecycleScope
 import androidx.annotation.RequiresPermission
 import io.flutter.embedding.engine.plugins.FlutterPlugin
 import io.flutter.embedding.engine.plugins.activity.ActivityAware
@@ -42,7 +44,12 @@ class VideoMethodChannel() : FlutterPlugin, MethodChannel.MethodCallHandler, Act
     override fun onAttachedToActivity(binding: ActivityPluginBinding) {
         activity = binding.activity
         context = binding.activity.applicationContext
-        recorder = SegmentedVideoRecorder(context!!, getDefaultCameraId())
+        recorder = SegmentedVideoRecorder(
+            context!!,
+            getDefaultCameraId(),
+            MediaStoreSegmentRepository(context!!),
+            (activity as ComponentActivity).lifecycleScope
+        )
     }
 
     override fun onDetachedFromActivityForConfigChanges() {}
