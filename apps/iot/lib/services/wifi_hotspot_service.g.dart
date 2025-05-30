@@ -7,7 +7,7 @@ part of 'wifi_hotspot_service.dart';
 // **************************************************************************
 
 String _$wifiHotspotServiceHash() =>
-    r'b5538ce3b2bb63fe9a41a85045c2d8fea225cfe1';
+    r'36f608fe4ab43a6eecff6464521b4bbbd5c9f882';
 
 /// See also [WifiHotspotService].
 @ProviderFor(WifiHotspotService)

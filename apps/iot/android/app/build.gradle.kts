@@ -43,6 +43,8 @@ dependencies {
     implementation("com.googlecode.mp4parser:isoparser:1.1.22")
     implementation("androidx.lifecycle:lifecycle-runtime-ktx:2.6.1")
     implementation("org.jetbrains.kotlinx:kotlinx-coroutines-android:1.6.4")
+    implementation("androidx.core:core-ktx:1.9.0")
+    implementation("androidx.activity:activity-ktx:1.6.1")
 }
 
 flutter {

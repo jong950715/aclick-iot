@@ -1,5 +1,4 @@
 import 'package:iot/repositories/app_logger.dart';
-import 'package:permission_handler/permission_handler.dart';
 import 'package:riverpod_annotation/riverpod_annotation.dart';
 import 'package:wifi_hotspot/wifi_hotspot.dart';
 
@@ -8,28 +7,12 @@ part 'wifi_hotspot_service.g.dart';
 @riverpod
 class WifiHotspotService extends _$WifiHotspotService {
   final WifiHotspot _wifiHotspot = WifiHotspot();
-  late final AppLogger _logger;
+  AppLogger get _logger => ref.watch(appLoggerProvider.notifier);
   bool _isHotspotStarted = false;
 
   @override
   HotspotInfo? build() {
     ref.keepAlive();
-    _logger = ref.read(appLoggerProvider.notifier);
-    _logger.logInfo('WiFi 핫스팟 서비스 초기화 시작');
-    
-    _logger.logInfo('WiFi 핫스팟 관련 권한 요청 시작');
-    final permissions = [
-      Permission.bluetooth,
-      Permission.bluetoothScan,
-      Permission.bluetoothConnect,
-      Permission.bluetoothAdvertise,
-      Permission.locationWhenInUse,
-      Permission.locationAlways,
-      Permission.nearbyWifiDevices,
-    ].request();
-    _logger.logInfo('WiFi 핫스팟 권한 요청 완료');
-    
-    _logger.logInfo('WiFi 핫스팟 서비스 초기화 완료');
     return null;
   }
 

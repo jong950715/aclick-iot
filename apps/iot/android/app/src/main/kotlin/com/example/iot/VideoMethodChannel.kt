@@ -7,6 +7,7 @@ import androidx.core.app.ActivityCompat
 import android.Manifest
 import android.content.pm.PackageManager
 import androidx.activity.ComponentActivity
+import androidx.annotation.RequiresApi
 import androidx.lifecycle.lifecycleScope
 import androidx.annotation.RequiresPermission
 import io.flutter.embedding.engine.plugins.FlutterPlugin
@@ -19,6 +20,7 @@ import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.withContext
+import kotlinx.coroutines.SupervisorJob
 
 /**
  * Flutter ↔ Android bridge for video segmentation
@@ -31,6 +33,7 @@ class VideoMethodChannel() : FlutterPlugin, MethodChannel.MethodCallHandler, Act
     private var context: Context? = null
     private var activity: Activity? = null
     private var recorder: SegmentedVideoRecorder? = null
+    private val pluginScope = CoroutineScope(SupervisorJob() + Dispatchers.Main.immediate)
 
     override fun onAttachedToEngine(binding: FlutterPlugin.FlutterPluginBinding) {
         channel = MethodChannel(binding.binaryMessenger, CHANNEL_NAME)
@@ -41,6 +44,7 @@ class VideoMethodChannel() : FlutterPlugin, MethodChannel.MethodCallHandler, Act
         channel.setMethodCallHandler(null)
     }
 
+    @RequiresApi(Build.VERSION_CODES.LOLLIPOP)
     override fun onAttachedToActivity(binding: ActivityPluginBinding) {
         activity = binding.activity
         context = binding.activity.applicationContext
@@ -62,6 +66,7 @@ class VideoMethodChannel() : FlutterPlugin, MethodChannel.MethodCallHandler, Act
         recorder = null
     }
 
+    @RequiresApi(Build.VERSION_CODES.M)
     @RequiresPermission(Manifest.permission.CAMERA)
     override fun onMethodCall(call: MethodCall, result: MethodChannel.Result) {
         val rec = recorder ?: run {
@@ -104,17 +109,12 @@ class VideoMethodChannel() : FlutterPlugin, MethodChannel.MethodCallHandler, Act
                 rec.stopRecording()
                 result.success(true)
             }
-//            "createEventClip" -> {
-//                val eventTimeMs = call.argument<Long>("eventTimeMs")?: return result.error("NO_TIME", "eventTimeMs 누락", null)
-//                val eventName = rec.createEventClip(eventTimeMs)
-//                result.success(eventName)
-//            }
             "createEventClip" -> {
                 val eventTimeMs = call.argument<Long>("eventTimeMs")
                     ?: return result.error("NO_TIME", "eventTimeMs 누락", null)
 
                 // ② Main 스레드에서 코루틴으로 비동기 실행
-                CoroutineScope(Dispatchers.Main).launch{
+                pluginScope.launch{
                     try {
                         // ③ IO 디스패처 내부로 넘어가 query·병합 작업 수행
                         val name = rec.createEventClip(eventTimeMs)
@@ -147,6 +147,7 @@ class VideoMethodChannel() : FlutterPlugin, MethodChannel.MethodCallHandler, Act
         }
     }
 
+    @RequiresApi(Build.VERSION_CODES.LOLLIPOP)
     private fun getDefaultCameraId(): String {
         val mgr = context!!.getSystemService(Context.CAMERA_SERVICE) as android.hardware.camera2.CameraManager
         return mgr.cameraIdList.firstOrNull() ?: "0"

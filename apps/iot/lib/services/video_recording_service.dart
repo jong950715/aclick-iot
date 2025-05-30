@@ -65,7 +65,6 @@ class VideoRecorderConfig {
 
 final videoRecordingServiceProvider = Provider((ref) {
   final l = ref.read(appLoggerProvider.notifier);
-  l.logInfo('비디오 녹화 서비스 프로바이더 초기화');
   return VideoRecordingService(logger: l);
 },);
 /// 지속적인 비디오 녹화 및 이벤트 클립 추출을 위한 서비스
@@ -86,7 +85,6 @@ class VideoRecordingService {
   );
 
   VideoRecordingService({required this.logger}) {
-    logger.logInfo('비디오 녹화 서비스 인스턴스 생성됨');
   }
   
   /// 레코더 설정

@@ -19,14 +19,12 @@ class ControlButtonsView extends ConsumerStatefulWidget {
 
 class _ControlButtonsViewState extends ConsumerState<ControlButtonsView> {
   late final List<ControlButton> controlButtons;
-  late final AppViewModel _vm;
+  AppViewModel get _vm => ref.read(appViewModelProvider.notifier);
 
   @override
   initState() {
     super.initState();
     WidgetsBinding.instance.addPostFrameCallback((_) {
-      _vm = ref.read(appViewModelProvider.notifier);
-      _vm.initialize();
     });
     controlButtons = [
       ControlButton(

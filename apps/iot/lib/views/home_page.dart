@@ -4,6 +4,7 @@ import 'package:iot/repositories/app_logger.dart';
 import 'package:iot/services/file_server_service.dart';
 import 'package:iot/services/wifi_hotspot_service.dart';
 import 'package:iot/services/ble_manager.dart';
+import 'package:iot/viewmodels/app_view_model.dart';
 import '../theme/app_theme.dart';
 import 'control_buttons_view.dart';
 import 'console_log_view.dart';
@@ -19,12 +20,13 @@ class HomePage extends ConsumerStatefulWidget {
 
 class _HomePageState extends ConsumerState<HomePage> {
 
+  AppViewModel get _vm => ref.watch(appViewModelProvider.notifier);
+
   @override
   void initState() {
     super.initState();
     WidgetsBinding.instance.addPostFrameCallback((_) {
-      ref.watch(wifiHotspotServiceProvider);
-      ref.watch(fileServerServiceProvider);
+      _vm.initialize();
     });
   }
 

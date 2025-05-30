@@ -1,7 +1,6 @@
 import 'dart:io';
 import 'package:iot/repositories/app_logger.dart';
 import 'package:iot/utils/file_path_utils.dart';
-import 'package:permission_handler/permission_handler.dart';
 import 'package:shelf/shelf.dart';
 import 'package:shelf/shelf_io.dart' as io;
 import 'package:shelf_static/shelf_static.dart';
@@ -9,28 +8,14 @@ import 'package:riverpod_annotation/riverpod_annotation.dart';
 
 part 'file_server_service.g.dart';
 
-@riverpod
+@Riverpod(keepAlive: true)
 class FileServerService extends _$FileServerService {
   HttpServer? _server;
-  late final AppLogger _logger;
+  AppLogger get _logger => ref.watch(appLoggerProvider.notifier);
 
 
   @override
   void build() {
-    ref.keepAlive();
-    _logger = ref.read(appLoggerProvider.notifier);
-    _logger.logInfo('파일 서버 서비스 초기화 시작');
-    initialize();
-  }
-
-  Future<void> initialize() async {
-    _logger.logInfo('파일 서버 서비스 권한 요청 시작');
-    await [
-      Permission.camera,
-      Permission.microphone,
-      Permission.manageExternalStorage,
-    ].request();
-    _logger.logInfo('파일 서버 서비스 권한 요청 완료');
   }
 
   Future<void> startServer() async {

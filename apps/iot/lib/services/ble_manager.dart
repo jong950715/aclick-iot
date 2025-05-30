@@ -3,23 +3,26 @@ import 'dart:convert';
 import 'dart:io';
 import 'dart:typed_data';
 
+import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:iot/repositories/app_logger.dart';
 import 'package:riverpod_annotation/riverpod_annotation.dart';
 import 'package:bluetooth_low_energy/bluetooth_low_energy.dart';
 import 'package:core/core.dart';
 import 'package:wifi_hotspot/wifi_hotspot.dart';
 
-part 'ble_manager.g.dart';
 
-@riverpod
-class BleManager extends _$BleManager {
+final bleManagerProvider = NotifierProvider<BleManager, void>((){
+  final res = BleManager();
+  Future.microtask(() => res.initialize(),);
+  return res;
+});
+
+class BleManager extends Notifier<void> {
   /// 라이브러리
-
   final centralManager = CentralManager();
-  late final AppLogger _logger;
+  AppLogger get _logger => ref.watch(appLoggerProvider.notifier);
 
   /// 구독 관련
-
   late final StreamSubscription _discoveredSubscription;
   late final StreamSubscription _stateChangedSubscription;
   late final StreamSubscription _connectionStateChangedSubscription;
@@ -41,11 +44,10 @@ class BleManager extends _$BleManager {
   bool _isConnected = false;
   ConnectionState _connectionState = ConnectionState.disconnected;
 
+  BleManager();
+
   @override
   Future<void> build() async {
-    ref.keepAlive();
-    _logger = ref.read(appLoggerProvider.notifier);
-    _logger.logInfo('BLE 매니저 빌드 시작');
     return;
   }
 
@@ -104,7 +106,6 @@ class BleManager extends _$BleManager {
     _discoveredSubscription = centralManager.discovered.listen((
       DiscoveredEventArgs discovered,
     ) {
-      _logger.logDebug('기기 발견됨: ${discovered.advertisement.name}');
       if (discovered.advertisement.serviceUUIDs.contains(
         UUID.fromString(BLE_SERVICE_UUID),
       )) {
@@ -116,7 +117,6 @@ class BleManager extends _$BleManager {
         _logger.logInfo('기기 정보 저장 및 스캔 중지');
         stopScan();
       } else {
-        _logger.logDebug('호환되지 않는 기기 무시: ${discovered.advertisement.name}');
       }
     });
     _logger.logInfo('BLE 특성 알림 리스너 등록');

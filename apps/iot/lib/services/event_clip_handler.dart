@@ -57,7 +57,6 @@ class EventJob {
 
 final eventClipHandlerProvider = ChangeNotifierProvider((ref) {
   final logger = ref.read(appLoggerProvider.notifier);
-  logger.logInfo('이벤트 클립 핸들러 프로바이더 초기화');
   return EventClipHandler(soundManager: ref.watch(soundManagerProvider), logger: logger);
 });
 
@@ -78,7 +77,6 @@ class EventClipHandler extends ChangeNotifier {
     required AppLogger logger,
   }) : _soundManager = soundManager,
        _logger = logger {
-    _logger.logInfo('이벤트 클립 핸들러 초기화 완료');
   }
 
   /// 이벤트 하나당 독립 스트림 생성 유틸
