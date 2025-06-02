@@ -16,27 +16,15 @@ sealed class EventClipState {
   const EventClipState();
 }
 
-class Idle extends EventClipState {
-  const Idle();
-}
-
-class WaitingSegments extends EventClipState {
-  const WaitingSegments();
-}
-
-class CreatingClip extends EventClipState {
-  const CreatingClip();
-}
-
+class Idle extends EventClipState {const Idle();}
+class WaitingSegments extends EventClipState {const WaitingSegments();}
+class CreatingClip extends EventClipState {const CreatingClip();}
 class ClipCreated extends EventClipState {
   final String filename;
-
   const ClipCreated(this.filename);
 }
-
 class Failure extends EventClipState {
   final String message;
-
   const Failure(this.message);
 }
 
@@ -55,32 +43,30 @@ class EventJob {
   void dispose() => subscription.cancel();
 }
 
-final eventClipHandlerProvider = ChangeNotifierProvider((ref) {
-  final logger = ref.read(appLoggerProvider.notifier);
-  return EventClipHandler(soundManager: ref.watch(soundManagerProvider), logger: logger);
+final eventClipSaverProvider = NotifierProvider<EventClipSaver, List<EventJob>>(() {
+  return EventClipSaver();
 });
 
-/// ChangeNotifier 핸들러 (Riverpod Provider로 등록)
-class EventClipHandler extends ChangeNotifier {
+/// Notifier 핸들러 (Riverpod Provider로 등록)
+class EventClipSaver extends Notifier<List<EventJob>> {
   final StreamController<String> _clipCreated = StreamController<String>();
 
-  Stream<String> get clipCreatedStream =>
-      _clipCreated.stream.asBroadcastStream();
+  Stream<String> get clipCreatedStream => _clipCreated.stream.asBroadcastStream();
 
   final List<EventJob> jobs = [];
   int? _lastEventTimeMs;
-  final SoundManager _soundManager;
-  final AppLogger _logger;
+  SoundManager get _soundManager => ref.watch(soundManagerProvider);
+  AppLogger get _logger => ref.watch(appLoggerProvider.notifier);
 
-  EventClipHandler({
-    required SoundManager soundManager,
-    required AppLogger logger,
-  }) : _soundManager = soundManager,
-       _logger = logger {
+  EventClipSaver();
+
+  @override
+  List<EventJob> build() {
+    return jobs;
   }
 
   /// 이벤트 하나당 독립 스트림 생성 유틸
-  Stream<EventClipState> createEventClipStream(int eventTimeMs) async* {
+  Stream<EventClipState> saveEventClipStream(int eventTimeMs) async* {
     _logger.logInfo('이벤트 클립 스트림 생성 시작: 이벤트 시간 $eventTimeMs');
     _logger.logInfo('세그먼트 대기 상태로 전환');
     yield const WaitingSegments();
@@ -103,13 +89,13 @@ class EventClipHandler extends ChangeNotifier {
         yield ClipCreated(eventFilename);
       } else {
         _logger.logWarning('이벤트 클립 생성 실패: 반환된 파일명 없음');
-        print('[EventClipHandler] 클립 생성 실패');
+        print('[EventClipSaver] 클립 생성 실패');
         _soundManager.playError();
         yield const Failure('클립 생성 실패');
       }
     } on PlatformException catch (e) {
       _logger.logError('네이티브 채널 호출 중 플랫폼 예외 발생: ${e.message}');
-      print('[EventClipHandler] 알 수 없는 오류');
+      print('[EventClipSaver] 알 수 없는 오류');
       _soundManager.playError();
       yield Failure(e.message ?? '알 수 없는 오류');
     } catch (e) {
@@ -134,10 +120,10 @@ class EventClipHandler extends ChangeNotifier {
 
     // 새 Job 생성
     _logger.logInfo('새 이벤트 Job 생성 시작');
-    final job = EventJob(now, createEventClipStream(now));
+    final job = EventJob(now, saveEventClipStream(now));
     jobs.add(job);
     _logger.logInfo('현재 활성 Job 수: ${jobs.length}');
-    notifyListeners();
+    state = jobs;
     _logger.logInfo('이벤트 감지 소리 재생');
     _soundManager.playEvent();
 
@@ -148,14 +134,13 @@ class EventClipHandler extends ChangeNotifier {
       jobs.remove(job);
       job.dispose();
       _logger.logInfo('Job 정리 완료, 남은 Job 수: ${jobs.length}');
-      notifyListeners();
+      state = jobs;
       _logger.logInfo('저장 완료 소리 재생');
       _soundManager.playSaved();
     });
     _logger.logInfo('이벤트 감지 처리 완료');
   }
 
-  @override
   void dispose() {
     _logger.logInfo('이벤트 클립 핸들러 자원 해제 시작');
     _logger.logInfo('남은 Job 정리: ${jobs.length}개');
@@ -163,7 +148,6 @@ class EventClipHandler extends ChangeNotifier {
       job.dispose();
     }
     _logger.logInfo('모든 Job 정리 완료');
-    super.dispose();
     _logger.logInfo('이벤트 클립 핸들러 자원 해제 완료');
   }
 }

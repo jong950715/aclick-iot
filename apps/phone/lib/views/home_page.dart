@@ -1,5 +1,9 @@
+import 'dart:io';
+
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
+import 'package:permission_handler/permission_handler.dart';
+import 'package:phone/core/foreground_service_handler.dart';
 import 'package:phone/services/ble_service.dart';
 import 'package:phone/services/network_service.dart';
 import 'package:phone/viewmodels/new_event_clip_view_model.dart';
@@ -22,9 +26,56 @@ class _HomePageState extends ConsumerState<HomePage> {
   @override
   void initState() {
     super.initState();
-    WidgetsBinding.instance.addPostFrameCallback((_) {
-      ref.watch(networkServiceProvider);
-      ref.watch(newEventClipViewModelProvider.notifier).initialize();
+    WidgetsBinding.instance.addPostFrameCallback((_) async {
+      // 1) 포그라운드 위치 권한
+      if (!await Permission.locationWhenInUse.isGranted) {
+        final status = await Permission.locationWhenInUse.request();
+        if (status != PermissionStatus.granted) {
+          // 포그라운드 위치 권한 요청 거부 시 처리
+        }
+      }
+
+      // 2) 백그라운드 위치 권한 (Android 10 이상 필요)
+      if (!await Permission.locationAlways.isGranted) {
+        final status = await Permission.locationAlways.request();
+        if (status != PermissionStatus.granted) {
+          // 백그라운드 위치 요청 거부 시 처리
+        }
+      }
+
+      // 3) Android 12+ BLE 권한
+      if (Platform.isAndroid && (await Permission.bluetoothScan.isDenied)) {
+        final statusScan = await Permission.bluetoothScan.request();
+        if (statusScan != PermissionStatus.granted) {
+          // BLE 스캔 권한 거부 시 처리
+        }
+      }
+      if (Platform.isAndroid && (await Permission.bluetoothConnect.isDenied)) {
+        final statusConnect = await Permission.bluetoothConnect.request();
+        if (statusConnect != PermissionStatus.granted) {
+          // BLE 연결 권한 거부 시 처리
+        }
+      }
+      if (Platform.isAndroid && (await Permission.bluetoothAdvertise.isDenied)) {
+        final statusAdvertise = await Permission.bluetoothAdvertise.request();
+        if (statusAdvertise != PermissionStatus.granted) {
+          // BLE 광고 권한 거부 시 처리
+        }
+      }
+
+      // 4) Android 13+ 주변 Wi-Fi 권한
+      if (Platform.isAndroid && (await Permission.nearbyWifiDevices.isDenied)) {
+        final statusWifi = await Permission.nearbyWifiDevices.request();
+        if (statusWifi != PermissionStatus.granted) {
+          // 주변 Wi-Fi 권한 거부 시 처리
+        }
+      }
+      await Permission.location.request();
+
+
+      await AppTaskHandler.requestPermissions();
+      await AppTaskHandler.instance.startService();
+
     });
   }
 

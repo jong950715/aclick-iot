@@ -1,6 +1,7 @@
 import 'package:iot/repositories/app_logger.dart';
 import 'package:iot/services/ble_manager.dart';
-import 'package:iot/services/event_clip_handler.dart';
+import 'package:iot/services/event_clip_saver.dart';
+import 'package:iot/services/event_clip_transfer.dart';
 import 'package:iot/services/video_recording_service.dart';
 import 'package:iot/services/volume_key_manager.dart';
 import 'package:iot/services/wifi_hotspot_service.dart';
@@ -15,7 +16,8 @@ class AppViewModel extends _$AppViewModel {
   BleManager get _ble => ref.watch(bleManagerProvider.notifier);
   WifiHotspotService get _hotspot => ref.watch(wifiHotspotServiceProvider.notifier);
   VideoRecordingService get _recorder => ref.watch(videoRecordingServiceProvider);
-  EventClipHandler get _event => ref.watch(eventClipHandlerProvider.notifier);
+  EventClipSaver get _eventSaver => ref.watch(eventClipSaverProvider.notifier);
+  EventClipTransfer get _eventTransfer => ref.watch(eventClipTransferProvider.notifier);
 
   final VolumeKeyManager _volumeKey = VolumeKeyManager();
 
@@ -48,14 +50,14 @@ class AppViewModel extends _$AppViewModel {
 
     if (_isInitialized) return;
     _isInitialized = true;
-    _event.clipCreatedStream.listen((filename) {
+    _eventSaver.clipCreatedStream.listen((filename) {
       _logger.logInfo('Clip created: $filename');
-      _ble.writeNewEventClip(filename);
+      _eventTransfer.onEventClipSaved(filename);
     });
     _volumeKey.setOnVolumeUpCallback(
       () {
         _logger.logInfo('물리 버튼 눌림 이벤트 발생');
-        ref.read(eventClipHandlerProvider).onEventDetected();
+        ref.read(eventClipSaverProvider.notifier).onEventDetected();
       },
     );
   }

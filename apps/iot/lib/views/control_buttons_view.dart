@@ -1,7 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:iot/repositories/app_logger.dart';
-import 'package:iot/services/event_clip_handler.dart';
+import 'package:iot/services/event_clip_saver.dart';
 import 'package:iot/services/file_server_service.dart';
 import 'package:iot/services/wifi_hotspot_service.dart';
 import 'package:iot/services/ble_manager.dart';
@@ -94,7 +94,7 @@ class _ControlButtonsViewState extends ConsumerState<ControlButtonsView> {
         color: Colors.indigo,
         logMessage: 'emit event button pressed',
         onPressed: () {
-          ref.read(eventClipHandlerProvider).onEventDetected();
+          ref.read(eventClipSaverProvider.notifier).onEventDetected();
         },
       ),
       ControlButton(

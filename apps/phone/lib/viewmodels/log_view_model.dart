@@ -1,3 +1,4 @@
+import 'package:flutter_foreground_task/flutter_foreground_task.dart';
 import 'package:riverpod_annotation/riverpod_annotation.dart';
 import '../models/log_entry.dart';
 
@@ -8,6 +9,7 @@ part 'log_view_model.g.dart';
 class LogViewModel extends _$LogViewModel {
   @override
   List<LogEntry> build() {
+    FlutterForegroundTask.addTaskDataCallback((data) => logInfo('[foreground] $data'),);
     // 초기 로그 추가
     return [
       LogEntry.info('System initialized'),

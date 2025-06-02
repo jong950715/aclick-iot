@@ -6,7 +6,7 @@ part of 'log_view_model.dart';
 // RiverpodGenerator
 // **************************************************************************
 
-String _$logViewModelHash() => r'65780be6e9ff5e51d7b210ac36710fb2a81555a3';
+String _$logViewModelHash() => r'c10ed189c3ee2cbda614f7dc78024b660ea586cc';
 
 /// See also [LogViewModel].
 @ProviderFor(LogViewModel)

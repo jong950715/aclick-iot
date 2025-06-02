@@ -3,21 +3,24 @@ import 'dart:convert';
 import 'dart:io';
 import 'dart:typed_data';
 
-import 'package:permission_handler/permission_handler.dart';
+import 'package:flutter_foreground_task/flutter_foreground_task.dart';
+import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:phone/models/hotspot_info.dart';
 import 'package:phone/viewmodels/log_view_model.dart';
-import 'package:riverpod_annotation/riverpod_annotation.dart';
 import 'package:bluetooth_low_energy/bluetooth_low_energy.dart';
 import 'package:core/core.dart';
 
-part 'ble_service.g.dart';
+final  bleServiceProvider = NotifierProvider<BleService, void>(
+      () {
+    return BleService();
+  },
+);
 
-@riverpod
-class BleService extends _$BleService {
+class BleService extends Notifier<void> {
   /// 라이브러리
-  late final LogViewModel _logger;
+  // LogViewModel get _logger => ref.read(logViewModelProvider.notifier);
+  void _log(String message) => FlutterForegroundTask.sendDataToMain(message);
   final peripheralManager = PeripheralManager();
-  late final GATTService gattService;
 
   /// 객체 관리
   Central? _central;
@@ -27,6 +30,8 @@ class BleService extends _$BleService {
   bool _isAdvertising = false;
   bool _isConnected = false;
   ConnectionState _connectionState = ConnectionState.disconnected;
+  BluetoothLowEnergyState _state = BluetoothLowEnergyState.unknown;
+  bool get isEnabled => _initialized && _state == BluetoothLowEnergyState.poweredOn;
 
   /// 구독 관리
   late final StreamSubscription _stateChangedSubscription;
@@ -35,21 +40,20 @@ class BleService extends _$BleService {
   late final StreamSubscription _characteristicWriteRequestedSubscription;
   late final StreamSubscription _characteristicNotifyStateChangedSubscription;
 
-  HotspotInfo? _hotspotInfo;
-  HotspotInfo? get hotspotInfo => _hotspotInfo;
-
   /// 외부로 스트림
-  final StreamController<String> _eventClipStreamController = StreamController<String>();
-  Stream<String> get newEventClipStream => _eventClipStreamController.stream;
+  final StreamController<String> _eventClipStreamController = StreamController<String>.broadcast();
+  Stream<String> get newEventClipStream => _eventClipStreamController.stream.asBroadcastStream();
+  final StreamController<HotspotInfo> _wifiCredentialStreamController = StreamController<HotspotInfo>.broadcast();
+  Stream<HotspotInfo> get wifiCredentialStream => _wifiCredentialStreamController.stream;
 
   @override
-  Future<void> build() async {
+  void build() {
     ref.keepAlive();
-    _logger = ref.read(logViewModelProvider.notifier);
+    initialize();
     return;
   }
 
-  Future<void> initialize() async {
+  void initialize() {
     if (_initialized) return;
     _initialized = true;
 
@@ -57,14 +61,16 @@ class BleService extends _$BleService {
     _stateChangedSubscription = peripheralManager.stateChanged.listen((
       eventArgs,
     ) async {
+      _state = eventArgs.state;
       print('stateChanged: ${eventArgs.state}');
       if (eventArgs.state == BluetoothLowEnergyState.unauthorized &&
           Platform.isAndroid) {
         await peripheralManager.authorize();
       }
+      if (eventArgs.state == BluetoothLowEnergyState.poweredOn) startAdvertising();
     });
 
-    /// 연결 구독
+    /// 연결 상태 구독
     _connectionStateChangedSubscription = peripheralManager.connectionStateChanged.listen((
       CentralConnectionStateChangedEventArgs eventArgs,
     ) async {
@@ -72,12 +78,14 @@ class BleService extends _$BleService {
       _central = c;
       switch (eventArgs.state) {
         case ConnectionState.connected:
-          _logger.logInfo('Connected to ${c.uuid}');
+          _log('Connected to ${c.uuid}');
           _isConnected = true;
+          stopAdvertising();
           break;
         case ConnectionState.disconnected:
-          _logger.logInfo('Disconnected to ${c.uuid}');
+          _log('Disconnected to ${c.uuid}');
           _isConnected = false;
+          startAdvertising();
           break;
       }
       _connectionState = eventArgs.state;
@@ -94,7 +102,7 @@ class BleService extends _$BleService {
           final elements = List.generate(5, (i) => i % 256);
           final value = Uint8List.fromList(elements);
           final trimmedValue = value.sublist(offset);
-          _logger.logInfo(
+          _log(
             'Read Request: ${trimmedValue} @${characteristic.uuid}:${offset}',
           );
           await peripheralManager.respondReadRequestWithValue(
@@ -112,7 +120,7 @@ class BleService extends _$BleService {
           final request = eventArgs.request;
           final offset = request.offset;
           final value = request.value;
-          _logger.logInfo(
+          _log(
             'Write Request: ${value} @${characteristic.uuid}:${offset}',
           );
           await peripheralManager.respondWriteRequest(request);
@@ -141,7 +149,7 @@ class BleService extends _$BleService {
                 .getMaximumNotifyLength(central);
             final elements = List.generate(5, (i) => i % 256);
             final value = Uint8List.fromList(elements);
-            _logger.logInfo('Notify Start: ${value} @${characteristic.uuid}');
+            _log('Notify Start: ${value} @${characteristic.uuid}');
             await peripheralManager.notifyCharacteristic(
               central,
               characteristic,
@@ -162,21 +170,25 @@ class BleService extends _$BleService {
   }
 
   Future<void> stopAdvertising() async {
+    if(!isEnabled) return;
     _isAdvertising = false;
     await peripheralManager.stopAdvertising();
   }
 
+  GATTService get _gattService =>
+      GATTService(
+        uuid: UUID.fromString(BLE_SERVICE_UUID),
+        isPrimary: true,
+        includedServices: [],
+        characteristics: [wifiCredentialGatt(), pingGatt(), newEventClipGatt()],
+      );
+
   Future<void> startAdvertising() async {
+    if(!isEnabled) return;
     if (_isAdvertising) return;
     _isAdvertising = true;
-    gattService = GATTService(
-      uuid: UUID.fromString(BLE_SERVICE_UUID),
-      isPrimary: true,
-      includedServices: [],
-      characteristics: [wifiCredentialGatt(), pingGatt(), newEventClipGatt()],
-    );
     await peripheralManager.removeAllServices();
-    await peripheralManager.addService(gattService);
+    await peripheralManager.addService(_gattService);
     final advertisement = Advertisement(
       name: 'Aclick',
       serviceUUIDs: [UUID.fromString(BLE_SERVICE_UUID)],
@@ -190,6 +202,7 @@ class BleService extends _$BleService {
                 ),
               ],
     );
+    await peripheralManager.stopAdvertising();
     await peripheralManager.startAdvertising(advertisement);
   }
 
@@ -264,14 +277,14 @@ class BleService extends _$BleService {
   }
   Future<void> _handleWifiCredential(Uint8List data) async {
     final jsonString = utf8.decode(data);
-    _logger.logInfo(jsonString);
+    _log(jsonString);
     final Map<String, dynamic> map = jsonDecode(jsonString);
-    _hotspotInfo = HotspotInfo.fromJson(map);
+    _wifiCredentialStreamController.add(HotspotInfo.fromJson(map));
   }
 
   void _handleNewEventClip(Uint8List data) {
     final filename = utf8.decode(data);
-    _logger.logInfo('New Event Clip: ${filename}');
+    _log('New Event Clip: ${filename}');
     _eventClipStreamController.add(filename);
   }
 

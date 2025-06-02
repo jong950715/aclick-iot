@@ -51,7 +51,7 @@ Add the following permissions to your `AndroidManifest.xml` file (usually locate
 <uses-permission android:name="android.permission.ACCESS_COARSE_LOCATION" />
 
 <!-- Needed for Android 12+ -->
-<uses-permission android:name="android.permission.BLUETOOTH_SCAN" android:usesPermissionFlags="neverForLocation" />
+<uses-permission android:name="android.permission.BLUETOOTH_SCAN" />
 <uses-permission android:name="android.permission.BLUETOOTH_CONNECT" />
 
 <!-- Optional: Mark Bluetooth as required -->

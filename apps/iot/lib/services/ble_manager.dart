@@ -44,6 +44,8 @@ class BleManager extends Notifier<void> {
   bool _isConnected = false;
   ConnectionState _connectionState = ConnectionState.disconnected;
 
+  bool get isConnected => _isConnected && _connectionState == ConnectionState.connected;
+
   BleManager();
 
   @override
@@ -347,7 +349,7 @@ class BleManager extends Notifier<void> {
     _logger.logInfo('JSON 데이터 전송 완료');
   }
 
-  Future<void> writeNewEventClip(String filename) async {
+  Future<void> sendNewEventClip(String filename) async {
     _logger.logInfo('새 이벤트 클립 파일명 전송 시작: $filename');
     if (_isConnected == false) {
       _logger.logWarning('연결되지 않은 상태, 이벤트 클립 전송 무시');

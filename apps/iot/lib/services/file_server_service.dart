@@ -1,3 +1,4 @@
+import 'dart:async';
 import 'dart:io';
 import 'package:iot/repositories/app_logger.dart';
 import 'package:iot/utils/file_path_utils.dart';
@@ -12,6 +13,8 @@ part 'file_server_service.g.dart';
 class FileServerService extends _$FileServerService {
   HttpServer? _server;
   AppLogger get _logger => ref.watch(appLoggerProvider.notifier);
+  final StreamController<String> _fileTransferred = StreamController();
+  Stream<String> get fileTransferredStream => _fileTransferred.stream.asBroadcastStream();
 
 
   @override
@@ -33,13 +36,23 @@ class FileServerService extends _$FileServerService {
     _logger.logInfo('요청 로깅 미들웨어 추가');
     final handler = Pipeline().addMiddleware(logRequests()).addHandler((
         Request req,
-        ) {
+        ) async {
       _logger.logDebug('수신된 요청: ${req.method} ${req.url}');
       if (req.method != 'GET') {
         _logger.logWarning('GET 이외의 메소드 발견: ${req.method}, 405 응답');
         return Response(405);
       }
-      return staticHandler(req);
+      // return staticHandler(req);
+      final Response res = await staticHandler(req);
+
+      if(res.statusCode != 200) return res;
+
+      final filename = req.url.pathSegments.isNotEmpty ? req.url.pathSegments.last : null;
+      if(filename == null) return res;
+
+      _logger.logInfo('파일 전송 성공: $filename');
+      _fileTransferred.add(filename);
+      return res;
     });
     
     _logger.logInfo('서버 객체 생성 및 시작 - 포트: 61428');
