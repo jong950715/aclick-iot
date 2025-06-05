@@ -48,6 +48,17 @@
         android:usesCleartextTraffic="true"
         android:requestLegacyExternalStorage="true"
         >
+
+        <!-- MyMediaButtonReceiver 등록 -->
+        <receiver
+            android:name=".MyMediaButtonReceiver"
+            android:exported="true">
+            <intent-filter>
+                <action android:name="android.intent.action.MEDIA_BUTTON" />
+            </intent-filter>
+        </receiver>
+
+
         <activity
             android:name=".MainActivity"
             android:exported="true"

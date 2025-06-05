@@ -40,7 +40,9 @@ android {
         }
     }
 }
-
+dependencies {
+    implementation("androidx.media:media:1.7.0")
+}
 flutter {
     source = "../.."
 }
