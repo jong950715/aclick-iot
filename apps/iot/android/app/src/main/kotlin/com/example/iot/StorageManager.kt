@@ -20,7 +20,7 @@ class StorageManager(
 ) {
     companion object {
         private const val TAG = "StorageManager"
-        private const val MAX_STORAGE_SIZE_BYTES = 32L * 1024 * 1024 * 1024 // 32GB
+        private const val MAX_STORAGE_SIZE_BYTES = 40L * 1024 * 1024 * 1024 // 32GB
         private const val CLEANUP_INTERVAL_MS = 60000L // 1분
     }
     

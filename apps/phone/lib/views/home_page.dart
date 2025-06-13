@@ -3,7 +3,7 @@ import 'dart:io';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:permission_handler/permission_handler.dart';
-import 'package:phone/core/foreground_service_handler.dart';
+import 'package:phone/foreground/foreground_service_handler.dart';
 import 'package:phone/services/ble_service.dart';
 import 'package:phone/services/network_service.dart';
 import 'package:phone/viewmodels/new_event_clip_view_model.dart';
@@ -74,7 +74,7 @@ class _HomePageState extends ConsumerState<HomePage> {
 
 
       await AppTaskHandler.requestPermissions();
-      await AppTaskHandler.instance.startService();
+      // await AppTaskHandler.instance.startService();
 
     });
   }

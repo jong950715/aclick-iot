@@ -33,7 +33,7 @@ class FilePathUtils {
   }
 
   static Future<String> getVideoDirectoryPath() async {
-    final path = '${await ExternalPath.getExternalStoragePublicDirectory(ExternalPath.DIRECTORY_MOVIES)}/Aclick';
+    final path = await ExternalPath.getExternalStoragePublicDirectory(ExternalPath.DIRECTORY_MOVIES);
     final dir = Directory(path);
 
     if (!await dir.exists()) {

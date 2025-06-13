@@ -5,12 +5,14 @@ import 'dart:typed_data';
 
 import 'package:flutter_foreground_task/flutter_foreground_task.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
+import 'package:phone/models/event_record.dart';
 import 'package:phone/models/hotspot_info.dart';
+import 'package:phone/services/report_repository.dart';
 import 'package:phone/viewmodels/log_view_model.dart';
 import 'package:bluetooth_low_energy/bluetooth_low_energy.dart';
 import 'package:core/core.dart';
 
-final  bleServiceProvider = NotifierProvider<BleService, void>(
+final bleServiceProvider = NotifierProvider<BleService, void>(
       () {
     return BleService();
   },
@@ -24,6 +26,9 @@ class BleService extends Notifier<void> {
 
   /// 객체 관리
   Central? _central;
+
+  /// GATT 관리
+
 
   /// 상태 관련
   bool _initialized = false;
@@ -150,11 +155,12 @@ class BleService extends Notifier<void> {
             final elements = List.generate(5, (i) => i % 256);
             final value = Uint8List.fromList(elements);
             _log('Notify Start: ${value} @${characteristic.uuid}');
-            await peripheralManager.notifyCharacteristic(
-              central,
-              characteristic,
-              value: value,
-            );
+            pingGatt = characteristic;
+            // await peripheralManager.notifyCharacteristic(
+            //   central,
+            //   characteristic,
+            //   value: value,
+            // );
           }
         });
 
@@ -180,7 +186,7 @@ class BleService extends Notifier<void> {
         uuid: UUID.fromString(BLE_SERVICE_UUID),
         isPrimary: true,
         includedServices: [],
-        characteristics: [wifiCredentialGatt(), pingGatt(), newEventClipGatt()],
+        characteristics: [wifiCredentialGatt(), pingGatt, newEventClipGatt()],
       );
 
   Future<void> startAdvertising() async {
@@ -224,24 +230,6 @@ class BleService extends Notifier<void> {
     );
   }
 
-  GATTCharacteristic pingGatt() {
-    return GATTCharacteristic.mutable(
-      uuid: UUID.fromString(BLE_GATT_PING_UUID),
-      properties: [
-        GATTCharacteristicProperty.read,
-        GATTCharacteristicProperty.write,
-        GATTCharacteristicProperty.writeWithoutResponse,
-        GATTCharacteristicProperty.notify,
-        GATTCharacteristicProperty.indicate,
-      ],
-      permissions: [
-        GATTCharacteristicPermission.read,
-        GATTCharacteristicPermission.write,
-      ],
-      descriptors: [],
-    );
-  }
-
   GATTCharacteristic newEventClipGatt() {
     return GATTCharacteristic.mutable(
       uuid: UUID.fromString(BLE_GATT_NEW_EVENT_CLIP_UUID),
@@ -267,7 +255,7 @@ class BleService extends Notifier<void> {
 
     await peripheralManager.notifyCharacteristic(
       _central!,
-      pingGatt(),
+      pingGatt, // pingGatt(),
       value: Uint8List.fromList([0x05, 0x02, 0x03]),
     );
   }
@@ -283,9 +271,38 @@ class BleService extends Notifier<void> {
   }
 
   void _handleNewEventClip(Uint8List data) {
-    final filename = utf8.decode(data);
-    _log('New Event Clip: ${filename}');
-    _eventClipStreamController.add(filename);
+    // final filename = utf8.decode(data);
+    // _log('New Event Clip: ${filename}');
+    // _eventClipStreamController.add(filename);
+    ReportRepository.instance.saveEventRecord(
+        EventRecord.fromJson(jsonDecode(utf8.decode(data))));
   }
 
+}
+
+extension PingGatt on BleService {
+  GATTCharacteristic? _pingGatt;
+
+  GATTCharacteristic get pingGatt =>
+      _pingGatt ?? GATTCharacteristic.mutable(
+        uuid: UUID.fromString(BLE_GATT_PING_UUID),
+        properties: [
+          GATTCharacteristicProperty.read,
+          GATTCharacteristicProperty.write,
+          GATTCharacteristicProperty.writeWithoutResponse,
+          GATTCharacteristicProperty.notify,
+          GATTCharacteristicProperty.indicate,
+        ],
+        permissions: [
+          GATTCharacteristicPermission.read,
+          GATTCharacteristicPermission.write,
+        ],
+        descriptors: [],
+      );
+
+  set pingGatt(GATTCharacteristic newPingGatt) {
+    if (UUID.fromString(BLE_GATT_PING_UUID) == newPingGatt.uuid) {
+      _pingGatt = newPingGatt;
+    }
+  }
 }

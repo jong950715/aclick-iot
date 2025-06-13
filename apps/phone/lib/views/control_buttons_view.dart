@@ -2,6 +2,8 @@ import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:phone/services/ble_service.dart';
 import 'package:phone/services/network_service.dart';
+import 'package:phone/utils/event_clip_editor.dart';
+import '../services/report_repository.dart';
 import '../viewmodels/log_view_model.dart';
 import '../theme/app_theme.dart';
 import '../models/control_button.dart';
@@ -41,12 +43,16 @@ class _ControlButtonsViewState extends ConsumerState<ControlButtonsView> {
         },
       ),
       ControlButton(
-        id: 'scan//',
-        label: 'Sca//n',
+        id: 'event!!',
+        label: 'event!!',
         icon: Icons.search,
         color: Colors.green,
         logMessage: 'Scan button pressed',
-        onPressed: () {},
+        onPressed: () {
+          ref.read(eventClipEditorProvider.notifier).makeEventClip(DateTime
+              .parse('2025-06-04T14:49:12.000')
+              .millisecondsSinceEpoch ~/ 1000);
+        },
       ),
       ControlButton(
         id: 'send',
@@ -64,7 +70,10 @@ class _ControlButtonsViewState extends ConsumerState<ControlButtonsView> {
         icon: Icons.info_outline,
         color: AppTheme.secondaryColor,
         logMessage: 'Info button pressed',
-        onPressed: () {},
+        onPressed: () async {
+          final reports = await ReportRepository.instance.loadAllEventRecords();
+          reports.forEach((report) => print(report));
+        },
       ),
       ControlButton(
         id: 'settings',

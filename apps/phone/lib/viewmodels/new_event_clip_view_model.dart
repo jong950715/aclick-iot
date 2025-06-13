@@ -52,7 +52,7 @@ class NewEventClipViewModel extends ListNotifier<NewEventClip, String> {
     _ble.newEventClipStream.listen((filename) {
       _log('New event clip: $filename');
       upsert(NewEventClip(filename));
-      _network.downloadEventClip(filename);
+      _network.downloadClip(filename);
       _log('Downloading event clip: $filename');
     },);
   }

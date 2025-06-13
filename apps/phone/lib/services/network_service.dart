@@ -48,15 +48,17 @@ class NetworkService extends _$NetworkService {
     );
   }
 
-  Future<void> downloadEventClip(String filename) async {
+  Future<String> downloadClip(String filename) async {
     final ip = _hotspotInfo?.ipAddress;
     final port = _hotspotInfo?.port;
-    final dest = '${await FilePathUtils.getVideoDirectoryPath()}/$filename';
-    if (ip == null) return;
+    final dest = '${await FilePathUtils.getVideoDirectoryPath()}/Aclick/$filename';
+    if (ip == null) return '';
     await ephemeralWifiManager.downloadFileOverWifi(
       url: 'http://$ip:${61428}/$filename',
       destFilePath: dest,
     );
     await MediaScanner.loadMedia(path: dest);
+
+    return dest;
   }
 }

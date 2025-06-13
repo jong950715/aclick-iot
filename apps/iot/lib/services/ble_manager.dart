@@ -11,6 +11,12 @@ import 'package:core/core.dart';
 import 'package:wifi_hotspot/wifi_hotspot.dart';
 
 
+enum GattKey {
+  wifi,
+  ping,
+  newEvent,
+}
+
 final bleManagerProvider = NotifierProvider<BleManager, void>((){
   final res = BleManager();
   Future.microtask(() => res.initialize(),);
@@ -19,7 +25,7 @@ final bleManagerProvider = NotifierProvider<BleManager, void>((){
 
 class BleManager extends Notifier<void> {
   /// 라이브러리
-  final centralManager = CentralManager();
+  final _centralManager = CentralManager();
   AppLogger get _logger => ref.watch(appLoggerProvider.notifier);
 
   /// 구독 관련
@@ -29,14 +35,22 @@ class BleManager extends Notifier<void> {
   late final StreamSubscription _characteristicNotifiedSubscription;
 
   /// 객체 관리
-  DiscoveredEventArgs? _discovered;
-  Peripheral? _peripheral;
+  DiscoveredEventArgs? _discoveredAclickPhone;
+  Peripheral? _peripheralAclickPhone;
   List<GATTService>? _services;
   GATTService? _service;
   List<GATTCharacteristic>? _characteristics;
   GATTCharacteristic? _wifiGatt;
   GATTCharacteristic? _pingGatt;
-  GATTCharacteristic? _newEventClipGatt;
+  GATTCharacteristic? _newEventGatt;
+  GATTCharacteristic? _gattFor (GattKey key) {
+    switch (key) {
+      case GattKey.wifi: return _wifiGatt;
+      case GattKey.ping: return _pingGatt;
+      case GattKey.newEvent: return _newEventGatt;
+    }
+  }
+
 
   ///상태 관련
   bool _initialized = false;
@@ -46,10 +60,18 @@ class BleManager extends Notifier<void> {
 
   bool get isConnected => _isConnected && _connectionState == ConnectionState.connected;
 
+  /// 외부에서 구독할 수 있는 stream
+  Stream<ConnectionState> get connectionStateChanged =>
+      _centralManager.connectionStateChanged
+          .where((event) =>
+      event.peripheral.uuid == _peripheralAclickPhone?.uuid,)
+          .map((event) => event.state,);
+
   BleManager();
 
   @override
   Future<void> build() async {
+    ref.keepAlive();
     return;
   }
 
@@ -72,20 +94,21 @@ class BleManager extends Notifier<void> {
 
     /// 기본 상태 구독
     _logger.logInfo('BLE 상태 변경 리스너 등록');
-    _stateChangedSubscription = centralManager.stateChanged.listen((eventArgs,) async {
+    _stateChangedSubscription =
+        _centralManager.stateChanged.listen((eventArgs,) async {
       _logger.logInfo('BLE 상태 변경: ${eventArgs.state}');
       print('stateChanged: ${eventArgs.state}');
       if (eventArgs.state == BluetoothLowEnergyState.unauthorized &&
           Platform.isAndroid) {
         _logger.logInfo('BLE 권한 없음, 권한 요청 시작');
-        await centralManager.authorize();
+        await _centralManager.authorize();
         _logger.logInfo('BLE 권한 요청 완료');
       }
     });
 
     /// 연결상태 구독
     _logger.logInfo('BLE 연결 상태 변경 리스너 등록');
-    _connectionStateChangedSubscription = centralManager.connectionStateChanged
+    _connectionStateChangedSubscription = _centralManager.connectionStateChanged
         .listen((PeripheralConnectionStateChangedEventArgs eventArgs) {
           final peripheral = eventArgs.peripheral;
           _logger.logInfo('BLE 연결 상태 변경 감지: ${eventArgs.state}');
@@ -105,7 +128,7 @@ class BleManager extends Notifier<void> {
 
     /// 발견된 기기 리스너
     _logger.logInfo('BLE 장치 발견 리스너 등록');
-    _discoveredSubscription = centralManager.discovered.listen((
+    _discoveredSubscription = _centralManager.discovered.listen((
       DiscoveredEventArgs discovered,
     ) {
       if (discovered.advertisement.serviceUUIDs.contains(
@@ -114,18 +137,19 @@ class BleManager extends Notifier<void> {
         _logger.logInfo(
           '호환 가능한 주변 기기 발견: ${discovered.advertisement.name} : \n 신호 강도 ${discovered.rssi}',
         );
-        _discovered = discovered;
-        _peripheral = discovered.peripheral;
+        _discoveredAclickPhone = discovered;
+        _peripheralAclickPhone = discovered.peripheral;
         _logger.logInfo('기기 정보 저장 및 스캔 중지');
         stopScan();
       } else {
       }
     });
     _logger.logInfo('BLE 특성 알림 리스너 등록');
-    _characteristicNotifiedSubscription = centralManager.characteristicNotified
+    _characteristicNotifiedSubscription = _centralManager.characteristicNotified
         .listen((eventArgs) {
           final c = eventArgs.characteristic;
           _logger.logInfo('특성으로부터 데이터 수신: ${eventArgs.value} (특성 UUID: ${c.uuid})');
+          _centralManager.setCharacteristicNotifyState(_peripheralAclickPhone!, c, state: true);
         });
     print('설정 다 했다.');
     _logger.logInfo('BLE 매니저 초기화 완료');
@@ -150,7 +174,7 @@ class BleManager extends Notifier<void> {
     _isScanning = true;
     _logger.logInfo('스캔 상태 플래그 설정: true');
     _logger.logInfo('BLE 디바이스 검색 시작');
-    await centralManager.startDiscovery();
+    await _centralManager.startDiscovery();
     _logger.logInfo('BLE 디바이스 검색 시작됨');
   }
 
@@ -163,7 +187,7 @@ class BleManager extends Notifier<void> {
     _isScanning = false;
     _logger.logInfo('스캔 상태 플래그 설정: false');
     _logger.logInfo('BLE 디바이스 검색 중지');
-    await centralManager.stopDiscovery();
+    await _centralManager.stopDiscovery();
     _logger.logInfo('BLE 디바이스 검색 중지됨');
   }
 
@@ -175,7 +199,7 @@ class BleManager extends Notifier<void> {
     }
     _isConnected = true;
     _logger.logInfo('연결 상태 플래그 설정: true');
-    final d = _discovered;
+    final d = _discoveredAclickPhone;
     if (d == null) {
       _logger.logWarning('발견된 기기 정보 없음, 연결 취소');
       _logger.logInfo('Discovery not found yet.');
@@ -186,93 +210,102 @@ class BleManager extends Notifier<void> {
 
     /// 연결하기
     _logger.logInfo('BLE 기기에 연결 시작');
-    await centralManager.connect(p);
+    await _centralManager.connect(p);
     _logger.logInfo('BLE 기기 연결 성공');
     _logger.logInfo('MTU 크기 요청: 517');
-    await centralManager.requestMTU(p, mtu: 517);
+    await _centralManager.requestMTU(p, mtu: 517);
     _logger.logInfo('MTU 크기 설정 완료');
+
+    await _updateGatt();
+
+    _logger.logInfo('WiFi 특성 알림 상태 활성화');
+    // _centralManager.setCharacteristicNotifyState(p, _wifiGatt!, state: true);
+    _centralManager.setCharacteristicNotifyState(p, _pingGatt!, state: true);
+    _logger.logInfo('BLE 기기 연결 및 설정 완료');
+    return;
+  }
+
+  Future<void> _updateGatt() async {
+    final d = _discoveredAclickPhone;
+    final p = d?.peripheral;
 
     /// service, characteristic 찾기
     _logger.logInfo('GATT 서비스 검색 시작');
-    _services = await centralManager.discoverGATT(p);
+    _services = await _centralManager.discoverGATT(p!);
     _logger.logInfo('발견된 서비스 수: ${_services?.length ?? 0}');
-    
+
     _service =
         _services
             ?.where((s) => s.uuid == UUID.fromString(BLE_SERVICE_UUID))
             .firstOrNull;
-    
+
     if (_service != null) {
       _logger.logInfo('필요한 서비스 발견: ${_service?.uuid}');
     } else {
       _logger.logWarning('필요한 서비스를 찾을 수 없음: ${BLE_SERVICE_UUID}');
     }
-    
+
     _characteristics = _service?.characteristics;
     _logger.logInfo('발견된 특성 수: ${_characteristics?.length ?? 0}');
-    
+
     _wifiGatt =
         _characteristics
             ?.where(
               (c) => c.uuid == UUID.fromString(BLE_GATT_WIFI_UUID),
-            ).firstOrNull;
-    
+        ).firstOrNull;
+
     if (_wifiGatt != null) {
       _logger.logInfo('WiFi 특성 발견: ${_wifiGatt?.uuid}');
     } else {
       _logger.logWarning('WiFi 특성을 찾을 수 없음');
     }
-    
+
     _pingGatt =
         _characteristics
             ?.where(
               (c) => c.uuid == UUID.fromString(BLE_GATT_PING_UUID),
-            ).firstOrNull;
-    
+        ).firstOrNull;
+
     if (_pingGatt != null) {
       _logger.logInfo('Ping 특성 발견: ${_pingGatt?.uuid}');
     } else {
       _logger.logWarning('Ping 특성을 찾을 수 없음');
     }
-    
-    _newEventClipGatt =
+
+    _newEventGatt =
         _characteristics
             ?.where(
               (c) => c.uuid == UUID.fromString(BLE_GATT_NEW_EVENT_CLIP_UUID),
-            ).firstOrNull;
-    
-    if (_newEventClipGatt != null) {
-      _logger.logInfo('이벤트 클립 특성 발견: ${_newEventClipGatt?.uuid}');
+        ).firstOrNull;
+
+    if (_newEventGatt != null) {
+      _logger.logInfo('이벤트 클립 특성 발견: ${_newEventGatt?.uuid}');
     } else {
       _logger.logWarning('이벤트 클립 특성을 찾을 수 없음');
     }
-
-    _logger.logInfo('WiFi 특성 알림 상태 활성화');
-    centralManager.setCharacteristicNotifyState(p, _wifiGatt!, state: true);
-    _logger.logInfo('BLE 기기 연결 및 설정 완료');
-    return;
   }
 
   Future<void> disconnect() async {
     _logger.logInfo('BLE 기기 연결 해제 요청');
-    if (!_isConnected) {
-      _logger.logInfo('연결된 상태가 아님, 연결 해제 요청 무시');
-      return;
-    }
+    // if (!_isConnected) {
+    //   _logger.logInfo('연결된 상태가 아님, 연결 해제 요청 무시');
+    //   return;
+    // }
     _isConnected = false;
     _logger.logInfo('연결 상태 플래그 설정: false');
-    
-    if (_peripheral == null) {
+
+    if (_peripheralAclickPhone == null) {
       _logger.logWarning('연결 해제할 기기 정보가 없음');
       return;
     }
-    
-    _logger.logInfo('기기 연결 해제 시작: ${_peripheral!.uuid}');
-    await centralManager.disconnect(_peripheral!);
+
+    _logger.logInfo('기기 연결 해제 시작: ${_peripheralAclickPhone!.uuid}');
+    await _centralManager.disconnect(_peripheralAclickPhone!);
     _logger.logInfo('기기 연결 해제 완료');
   }
 
   Future<void> ping() async {
+    await _updateGatt();
     _logger.logInfo('BLE 기기 Ping 테스트 요청');
     if (_isConnected == false) {
       _logger.logWarning('연결되지 않은 상태, Ping 요청 무시');
@@ -283,7 +316,7 @@ class BleManager extends Notifier<void> {
       return;
     }
 
-    final p = _discovered?.peripheral;
+    final p = _discoveredAclickPhone?.peripheral;
     final c = _pingGatt;
     if (p == null) {
       _logger.logWarning('Ping 요청할 기기 정보 없음');
@@ -295,7 +328,7 @@ class BleManager extends Notifier<void> {
     }
     
     _logger.logInfo('Ping 데이터 전송 시작: [0x01, 0x02, 0x03]');
-    await centralManager.writeCharacteristic(
+    await _centralManager.writeCharacteristic(
       p,
       c,
       value: Uint8List.fromList([0x01, 0x02, 0x03]),
@@ -307,11 +340,12 @@ class BleManager extends Notifier<void> {
   Future<void> sendWifiCredential(HotspotInfo hotspotInfo) async {
     _logger.logInfo('WiFi 핫스팟 정보 전송 시작');
     _logger.logInfo('전송할 핫스팟 정보: SSID=${hotspotInfo.ssid}');
-    await _writeJson(hotspotInfo.toJson());
+    await _writeJson(hotspotInfo.toJson(), _wifiGatt!);
     _logger.logInfo('WiFi 핫스팟 정보 전송 완료');
   }
 
-  Future<void> _writeJson(Map<String, dynamic> json) async {
+  Future<void> _writeJson(Map<String, dynamic> json,
+      GATTCharacteristic c) async {
     _logger.logInfo('JSON 데이터 전송 시작');
     if (_isConnected == false) {
       _logger.logWarning('연결되지 않은 상태, JSON 전송 무시');
@@ -328,25 +362,34 @@ class BleManager extends Notifier<void> {
     final data = Uint8List.fromList(utf8.encode(jsonString));
     _logger.logInfo('데이터 크기: ${data.length} 바이트');
 
-    final p = _discovered?.peripheral;
-    final c = _wifiGatt;
+    final p = _discoveredAclickPhone?.peripheral;
     if (p == null) {
       _logger.logWarning('JSON 전송할 기기 정보 없음');
       return;
     }
-    if (c == null) {
-      _logger.logWarning('WiFi 특성 정보 없음');
-      return;
-    }
     
     _logger.logInfo('JSON 데이터 전송 시작: ${p.uuid}');
-    await centralManager.writeCharacteristic(
+    await _centralManager.writeCharacteristic(
       p,
       c,
       value: data,
       type: GATTCharacteristicWriteType.withResponse,
     );
     _logger.logInfo('JSON 데이터 전송 완료');
+  }
+
+  Future<bool> writeJsonWithRetry(Map<String, dynamic> json, GattKey key) async {
+    final c = _gattFor(key);
+    for (int i = 0; i < 3; i++) {
+      try {
+        await _writeJson(json, c!);
+        return true;
+      } catch (e) {
+        _logger.logError('JSON 데이터 전송 실패: $e');
+      }
+      await Future.delayed(Duration(seconds: 1));
+    }
+    return false;
   }
 
   Future<void> sendNewEventClip(String filename) async {
@@ -360,8 +403,8 @@ class BleManager extends Notifier<void> {
       return;
     }
 
-    final p = _discovered?.peripheral;
-    final c = _newEventClipGatt;
+    final p = _discoveredAclickPhone?.peripheral;
+    final c = _newEventGatt;
     if (p == null) {
       _logger.logWarning('이벤트 클립 전송할 기기 정보 없음');
       return;
@@ -372,7 +415,7 @@ class BleManager extends Notifier<void> {
     }
     
     _logger.logInfo('이벤트 클립 파일명 전송 시작: $filename');
-    await centralManager.writeCharacteristic(
+    await _centralManager.writeCharacteristic(
       p,
       c,
       value: Uint8List.fromList(utf8.encode(filename)),

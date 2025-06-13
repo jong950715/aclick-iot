@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:iot/repositories/app_logger.dart';
 import 'package:iot/services/event_clip_saver.dart';
+import 'package:iot/services/event_handler.dart';
 import 'package:iot/services/file_server_service.dart';
 import 'package:iot/services/wifi_hotspot_service.dart';
 import 'package:iot/services/ble_manager.dart';
@@ -94,7 +95,7 @@ class _ControlButtonsViewState extends ConsumerState<ControlButtonsView> {
         color: Colors.indigo,
         logMessage: 'emit event button pressed',
         onPressed: () {
-          ref.read(eventClipSaverProvider.notifier).onEventDetected();
+          ref.read(eventHandlerProvider.notifier).captureEvent();
         },
       ),
       ControlButton(
@@ -107,6 +108,16 @@ class _ControlButtonsViewState extends ConsumerState<ControlButtonsView> {
           await ping();
         },
       ),
+      ControlButton(
+        id: 'disconnect',
+        label: 'disconnect',
+        icon: Icons.cancel_outlined,
+        color: Colors.green,
+        logMessage: 'disconnect button pressed',
+        onPressed: () async {
+          await ref.read(bleManagerProvider.notifier).disconnect();
+        },
+      )
     ];
   }
 
