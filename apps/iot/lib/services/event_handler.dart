@@ -9,6 +9,8 @@ import 'package:iot/services/ble_manager.dart';
 import 'package:iot/services/gps_service.dart';
 import 'dart:async';
 
+import 'package:iot/services/sound_manager.dart';
+
 class EventRecord {
   final DateTime datetime;
   final String lat;
@@ -33,7 +35,7 @@ final eventHandlerProvider = NotifierProvider<EventHandler, void>(() => EventHan
 class EventHandler extends Notifier<void> {
   /// modules
   AsyncValue<Position> get gpsAv => ref.read(gpsStreamProvider);
-
+  SoundManager get _sound => ref.read(soundManagerProvider);
   BleManager get _ble => ref.read(bleManagerProvider.notifier);
 
   final _controller = StreamController<EventRecord>();
@@ -68,6 +70,7 @@ class EventHandler extends Notifier<void> {
   }
 
   void captureEvent() {
+    _sound.playEvent();
     _controller.add(
       EventRecord(
         datetime: DateTime.now(),
@@ -89,9 +92,9 @@ class EventHandler extends Notifier<void> {
 
   Future<void> _loopForPush() async {
     while (true) {
-      final event = await _queue.next;
-      await _readyBle.future;
       try {
+        final event = await _queue.next;
+        await _readyBle.future;
         await _pushEvent(event);
       } catch (e) {
         print(e);
